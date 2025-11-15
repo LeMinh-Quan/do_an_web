@@ -1,0 +1,440 @@
+/* ====== KHU VỰC CHUNG ====== */
+.content .acer,
+.content .dell,
+.content .hp,
+.content .msi,
+.content .asus,
+.content .lenovo,
+.content .macbook {
+    display: flex;
+    flex-direction: column;
+}
+
+.content .noidung {
+    display: flex;
+    flex-direction: row;
+    margin-bottom: 0;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 20px;
+}
+
+/* ====== KHUNG SẢN PHẨM ====== */
+.tooltip {
+    position: relative;
+    display: inline-block;
+    text-align: center;
+    margin: 15px;
+}
+
+/* ====== HÌNH ẢNH SẢN PHẨM ====== */
+.tooltip img {
+    width: 150px;
+    height: 150px;
+    border-radius: 10px;
+    box-shadow: 0 0 6px rgba(0, 0, 0, 0.3);
+    transition: 0.3s;
+    object-fit: cover;
+    cursor: pointer;
+}
+
+.tooltip img:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.4);
+}
+
+/* ====== TOOLTIP MÔ TẢ ====== */
+.tooltip .text {
+    visibility: hidden;
+    opacity: 0;
+    width: 180px;
+    background: #fff;
+    color: #002b80; /* Navy Blue */
+    text-align: left;
+    border-radius: 12px;
+    padding: 15px;
+    position: absolute;
+    top: 120px;
+    left: 120px;
+    transform: translate(-30px, -30px);
+    transition: all 0.3s ease-in-out;
+    font-size: 13px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+    border: 1px solid #000;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+/* Mũi tên của tooltip */
+.tooltip .text::before {
+    content: "";
+    position: absolute;
+    top: 15px;
+    left: -10px;
+    width: 0;
+    height: 0;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    border-right: 9px solid #000;
+}
+
+/* ====== NỘI DUNG TRONG TOOLTIP ====== */
+.tooltip .text h3 {
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 12px;
+    color: #000;
+    text-align: center;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #444;
+}
+
+.tooltip .product-info {
+    margin: 8px 0;
+    line-height: 1.5;
+}
+
+.tooltip .product-info strong {
+    color: #ffcc00;
+}
+
+/* ====== BẢNG THÔNG SỐ ====== */
+.tooltip .text table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 12px;
+    background: #111;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.tooltip .text table td {
+    padding: 8px 6px;
+    border: 1px solid #333;
+    text-align: center;
+    color: #fff;
+}
+
+.tooltip .text table td:first-child {
+    font-weight: bold;
+    background: #222;
+    color: #ffcc00;
+}
+
+/* ====== GIÁ SẢN PHẨM ====== */
+.tooltip .price-section {
+    text-align: center;
+    margin: 15px 0 5px 0;
+    padding: 12px;
+    background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+    border-radius: 8px;
+    border: 1px solid #333;
+}
+
+.tooltip .price-section h4 {
+    color: #ff4444;
+    font-size: 20px;
+    font-weight: bold;
+    margin: 5px 0;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.tooltip .stock-info {
+    color: #00cc66;
+    font-size: 12px;
+    font-weight: bold;
+    margin-top: 5px;
+}
+
+/* ====== HIỆU ỨNG HOVER TOOLTIP ====== */
+.tooltip:hover .text {
+    visibility: visible;
+    opacity: 1;
+    transform: translate(-20px, -20px);
+}
+
+/* ====== LƯỚI SẢN PHẨM ====== */
+.product-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 25px;
+    padding: 20px;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+/* ====== RESPONSIVE ====== */
+@media (max-width: 768px) {
+    .tooltip .text {
+        width: 250px;
+        left: 100px;
+        top: 100px;
+    }
+
+    .tooltip img {
+        width: 120px;
+        height: 120px;
+    }
+}
+
+.content {
+    .acer, .dell, .hp, .msi, .asus, .lenovo, .macbook {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .noidung {
+        display: flex;
+        flex-direction: row;
+        margin-bottom: 0px;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 20px;
+    }
+    
+    .tooltip {
+        position: relative;
+        display: inline-block;
+        text-align: center;
+
+        margin: 15px;
+
+        img {
+            width: 150px;
+            height: 150px;
+            border-radius: 10px;
+            box-shadow: 0 0 6px rgba(0, 0, 0, 0.3);
+            transition: 0.3s;
+            object-fit: cover;
+            cursor: pointer;
+        }
+
+        img:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 12px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Tooltip style - góc dưới bên phải */
+        .text {
+            visibility: hidden;
+            opacity: 0;
+            width: 200px;
+            background: white;
+            color: blue;
+            text-align: left;
+            border-radius: 12px;
+            padding: 15px;
+            position: absolute;
+            top: 120px;
+            left: 120px;
+            transform: translate(-30px, -30px);
+            transition: all 0.3s ease-in-out;
+            font-size: 13px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+           
+            border: 1px solid black;
+            z-index: 1000;
+            pointer-events: none;
+            
+            
+        }
+        
+
+
+        /* Mũi tên chỉ vào góc ảnh */
+        .text::before {
+            content: "";
+            position: absolute;
+            top: 15px;
+            left: -10px;
+            width: 0;
+            height: 0;
+            border-top: 4px solid transparent;
+            border-bottom: 4px solid transparent;
+            border-right: 9px solid black;
+        }
+
+        /* Tiêu đề sản phẩm */
+        .text h3 {
+            font-size: 16px;
+            font-weight: bold;
+            margin: 0 0 12px 0;
+            color: #ffffff;
+            text-align: center;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #444;
+        }
+
+        /* Thông tin sản phẩm */
+        .product-info {
+            margin: 8px 0;
+            line-height: 1.5;
+        }
+
+        .product-info strong {
+            color: #ffcc00;
+        }
+
+        /* Bảng thông số */
+        .text table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0;
+            font-size: 12px;
+            background: #111;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .text table td {
+            padding: 8px 6px;
+            border: 1px solid #333;
+            text-align: center;
+            color: #ffffff;
+        }
+
+        .text table td:first-child {
+            font-weight: bold;
+            background: #222;
+            color: #ffcc00;
+        }
+
+        /* Giá sản phẩm */
+        .price-section {
+            text-align: center;
+            margin: 15px 0 5px 0;
+            padding: 12px;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+
+         h4 {
+            color: black;
+            font-size: 20px;
+            font-weight: bold;
+            margin: 5px 0;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+        }
+        h4:hover{
+            color: blue;
+        }
+
+        .stock-info {
+            color: #00cc66;
+            font-size: 12px;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        /* Hiệu ứng hover */
+        &:hover .text {
+            visibility: visible;
+            opacity: 1;
+            transform: translate(-20px, -20px);
+        }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .text {
+                width: 250px;
+                left: 100px;
+                top: 100px;
+            }
+            
+            img {
+                width: 120px;
+                height: 120px;
+            }
+        }
+    }
+}
+
+/* Additional styling for product grid */
+.product-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 25px;
+    padding: 20px;
+    max-width: 00px;
+    margin: 0 auto;
+}
+.footer {
+            background: var(--secondary);
+            color: white;
+            margin-top: 3rem;
+        }
+        
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+        }
+        
+        .footer-section h3 {
+            margin-bottom: 1.5rem;
+            font-size: 1.3rem;
+            position: relative;
+        }
+        
+        .footer-section h3:after {
+            content: '';
+            display: block;
+            width: 50px;
+            height: 3px;
+            background: var(--primary);
+            margin-top: 0.5rem;
+        }
+        
+        .footer-section p {
+            margin-bottom: 1rem;
+            color: black;
+        }
+        
+        .footer-section a {
+            color: red;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+        
+        .footer-section a:hover {
+            color: white;
+        }
+        
+        .social-links {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .social-links a {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            transition: background 0.3s;
+        }
+        
+        .social-links a:hover {
+            background: var(--primary);
+        }
+        
+        .footer-bottom {
+            text-align: center;
+            padding-top: 2rem;
+            margin-top: 2rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: whitesmoke   ;
+        }
+
+
+        .contents{
+            display: flex;
+            flex-direction: column;
+        }
