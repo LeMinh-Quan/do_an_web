@@ -1,0 +1,247 @@
+<?php
+include 'connect_db.php';
+?>
+
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+  <title>TQS Store</title>
+  <link
+    rel="stylesheet"
+    href="style.css"
+  >
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+  >
+</head>
+
+<body>
+
+  <nav>
+    <ul class="left_nav">
+      <li class="name"><a href="index.php">TQS_store</a></li>
+    </ul>
+
+    <ul class="right_nav">
+      <li>
+        <button
+          onclick="login()"
+          class="btn"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            height="24"
+            width="24"
+            fill="white"
+          >
+            <path d="M12 12q-1.65 0-2.825-1.175Q8 9.65 8 8q0-1.65 1.175-2.825Q10.35 4 12 4q1.65 0 2.825 1.175Q16 6.35 16 8q0 1.65-1.175 2.825Q13.65 12 12 12Zm0 2q2.075 0 4.037.788Q18 15.575 18 17v1H6v-1q0-1.425 1.963-2.212Q9.925 14 12 14Z" />
+          </svg>
+          Đăng Nhập
+        </button>
+      </li>
+    </ul>
+  </nav>
+
+  <h2 class="h_1">Sức mạnh</h2>
+  <h2 class="h_2">Công nghệ tối ưu</h2>
+  <p>Khám phá bộ sưu tập laptop và PC gaming cao cấp với hiệu năng vượt trội</p>
+  <button
+    id="btnChuyenTrang"
+    class="A"
+  >Khám phá ngay →</button>
+
+  <script src="script.js"></script>
+</body>
+<style>
+  html,
+  body {
+    padding: 0;
+    margin: 0;
+    user-select: none;
+    /* chặn bôi đen nội dung */
+    -webkit-user-select: none;
+    /* Chrome, Safari */
+    -moz-user-select: none;
+    /* Firefox */
+    -ms-user-select: none;
+    /* Edge cũ */
+  }
+
+  nav {
+    display: flex;
+    justify-content: space-between;
+    /* đẩy trái - phải */
+    align-items: center;
+    background-color: black;
+    padding: 30px 30px;
+  }
+
+  .left_nav,
+  .right_nav {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    margin: 0;
+    padding: 0;
+  }
+
+  .left_nav li {
+    margin-right: 40px;
+  }
+
+  .right_nav li {
+    margin-left: 20px;
+  }
+
+  .left_nav a:hover {
+    background: linear-gradient(90deg, #00aaff, #a26bff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  nav a {
+    text-decoration: none;
+    color: white;
+    font-size: 20px;
+    font-weight: bold;
+  }
+
+  .btn {
+    background-color: black;
+    border: 1px solid white;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    transition: 0.3s ease;
+    font-weight: bold;
+  }
+
+  .btn:hover {
+    background-color: white;
+    color: black;
+  }
+
+  .btn:hover svg {
+    fill: black;
+  }
+
+  .name a {
+    font-size: 50px;
+    font-weight: bold;
+    background: linear-gradient(90deg, #00aaff, #a26bff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* Ảnh nền */
+  .html,
+  body {
+    height: calc(100vh);
+    /* Trừ đi chiều cao của nav */
+    background: url("img_do_an.png") no-repeat center center;
+    background-size: cover;
+    margin: 0px;
+  }
+
+  .h_1 {
+    font-size: 110px;
+    color: white;
+    margin-left: 34px;
+    margin-top: 150px;
+    margin-bottom: 0px;
+  }
+
+  .h_2 {
+    font-size: 100px;
+    font-weight: bold;
+    margin-left: 34px;
+    margin-top: 0;
+    margin-bottom: 0;
+    display: inline-block;
+    background: linear-gradient(90deg, #00aaff, #a26bff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-wrap: nowrap;
+    overflow: hidden;
+    animation: typingEffect 2s steps(30) infinite alternate-reverse;
+  }
+
+  @keyframes typingEffect {
+    from {
+      width: 0;
+    }
+
+    to {
+      width: 100%;
+      border-right: none;
+    }
+
+    /* khi xong thì ẩn con trỏ */
+  }
+
+  /* Nhấp nháy con trỏ */
+  @keyframes blink {
+    50% {
+      border-color: transparent;
+    }
+  }
+
+  p {
+    font-size: 42px;
+    color: white;
+    margin-top: 10px;
+    margin-left: 34px;
+    padding-bottom: 0px;
+    animation: colorChange 3s steps(50) infinite alternate-reverse;
+  }
+
+  @keyframes colorChange {
+    0% {
+      color: white;
+    }
+
+    50% {
+      color: black;
+    }
+  }
+
+  .A {
+    display: inline-block;
+    position: absolute;
+    left: 50%;
+    padding: 16px 32px;
+    border-radius: 10px;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    border: 1px;
+    height: auto;
+    color: #000;
+    font-weight: 900;
+    text-decoration: none;
+    background: linear-gradient(90deg, #00aaff, #a26bff);
+  }
+
+  .A:hover {
+    font-size: larger;
+    padding: 18px 36px;
+    color: white;
+    background: linear-gradient(90deg, rgb(249, 58, 58), rgb(52, 52, 221));
+  }
+
+  .glass {
+    font-size: 24px;
+  }
+</style>
+
+</html>
