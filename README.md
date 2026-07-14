@@ -234,7 +234,7 @@ http://localhost/do_an_web/do_an/
 
 **Giao diện admin:**
 ```
-http://localhost/do_an_web/do_an/admin/
+http://localhost/do_an_web/do_an/user_admin/
 ```
 
 **phpMyAdmin:**
@@ -251,13 +251,13 @@ Sau khi nhập dữ liệu từ SQL file, kiểm tra các tài khoản có sẵn
 ### Tài Khoản Admin
 | Email | Password | Vai Trò |
 |-------|----------|--------|
-| admin@example.com | admin123 | Quản trị viên |
+| admin | 123 | Quản trị viên |
 
 ### Tài Khoản Khách Hàng
 | Email | Password | Vai Trò |
 |-------|----------|--------|
-| user@example.com | user123 | Khách hàng |
-| customer@example.com | 123456 | Khách hàng |
+| q | 123 | Khách hàng |
+| n | 123 | Khách hàng |
 
 > ⚠️ **Lưu ý:** Thay đổi mật khẩu mặc định ngay sau lần đầu đăng nhập vì lý do bảo mật.
 
@@ -393,8 +393,8 @@ Sau khi nhập dữ liệu từ SQL file, kiểm tra các tài khoản có sẵn
 1. **Đăng Nhập Admin**
    ```
    http://localhost/do_an_web/do_an/admin/
-   Email: admin@example.com
-   Password: admin123
+   Email:admin
+   Password: 123
    ```
 
 2. **Quản Lý Sản Phẩm**
@@ -457,14 +457,6 @@ Dự án đã được triển khai trên server thực tế. Để triển khai
 
 - 🔗 GitHub: [https://github.com/LeMinh-Quan](https://github.com/LeMinh-Quan)
 - 📧 Email: [your-email@example.com]
-- 💼 LinkedIn: [Your LinkedIn Profile]
-
----
-
-## 📄 Giấy Phép (License)
-
-Dự án này được phát hành dưới **MIT License**. Bạn có quyền sử dụng, học tập, sửa đổi và phát triển cho mục đích không thương mại.
-
 ---
 
 ## 📋 Danh Sách Kiểm Tra (Checklist)
