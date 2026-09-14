@@ -4,6 +4,28 @@
   require_once '../config.php';
 
   $conn = connect_db();
+
+  // Lấy thông tin hiển thị tài khoản đang đăng nhập: <username>-<3 số cuối mã KH>
+  $tenHienThi = '';
+  if (isset($_SESSION['login'])) {
+      $usernameDangNhap = $_SESSION['login'];
+      $stmtKH = $conn->prepare("SELECT MaKH FROM users WHERE username = ?");
+      if ($stmtKH) {
+          $stmtKH->bind_param("s", $usernameDangNhap);
+          $stmtKH->execute();
+          $resKH = $stmtKH->get_result();
+          if ($resKH && $resKH->num_rows > 0) {
+              $rowKH = $resKH->fetch_assoc();
+              $maKH = $rowKH['MaKH'];
+              $ma3So = substr($maKH, -3); // Lấy 3 ký tự cuối của mã khách hàng
+              $tenHienThi = $usernameDangNhap . '-' . $ma3So;
+          } else {
+              $tenHienThi = $usernameDangNhap;
+          }
+          $stmtKH->close();
+      }
+  }
+
   $sql = "SELECT * FROM sanpham";
   $sql2= "SELECT * from mota";
 
@@ -105,6 +127,17 @@ body {
   font-size: 1.4rem;
   text-decoration: none;
   color: white;
+}
+
+/* USER BADGE */
+.user-badge {
+  font-size: 0.95rem;
+  font-weight: bold;
+  color: #fff;
+  background: #00838f;
+  padding: .4rem .8rem;
+  border-radius: 20px;
+  white-space: nowrap;
 }
 
 /* CONTENT WRAPPER */
@@ -284,6 +317,10 @@ body {
       <form action="../search/index.php" method="post">
         <input type="search" placeholder="tìm kiếm sản phẩm" name="search" id="search"><button>🔍</button>
       </form>
+
+      <?php if (!empty($tenHienThi)): ?>
+        <span class="user-badge" title="Tài khoản đang đăng nhập">👤 <?php echo htmlspecialchars($tenHienThi); ?></span>
+      <?php endif; ?>
 
       <a href="../cart/xem.php">️🛒</a>
       <a href="../dhang/index.php">🚚</a>

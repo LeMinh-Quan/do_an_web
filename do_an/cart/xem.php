@@ -22,31 +22,96 @@ if($result && $result->num_rows > 0){
 } else {
     die("Người dùng không tồn tại!");
 }
+$stmt->close();
+
+// Tạo CSRF token nếu chưa có (dùng chung cho các form trong trang này)
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+$csrf_token = $_SESSION['csrf_token'];
+
+// Lấy thông báo lỗi (nếu có) từ lần submit trước, rồi xóa đi để không hiển thị lặp lại
+$error = '';
+if (isset($_SESSION['cart_error'])) {
+    $error = $_SESSION['cart_error'];
+    unset($_SESSION['cart_error']);
+}
+
+/* =============================
+   HÀM KIỂM TRA SẢN PHẨM CÓ THUỘC GIỎ HÀNG CỦA USER HIỆN TẠI KHÔNG
+   (tránh việc user A thao tác lên MaCart/MaSP của user B)
+============================= */
+function sanPhamThuocGioHangCuaUser($conn, $MaKH, $MaCart, $MaSP) {
+    $stmt = $conn->prepare("
+        SELECT ct.SoLuong
+        FROM ct_cart ct
+        JOIN cart c ON c.MaCart = ct.MaCart
+        WHERE c.MaCart = ? AND c.userid = ? AND ct.MaSP = ?
+    ");
+    $stmt->bind_param("sss", $MaCart, $MaKH, $MaSP);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $ok = $res && $res->num_rows > 0;
+    $stmt->close();
+    return $ok;
+}
 
 /* =============================
    XỬ LÝ CẬP NHẬT SỐ LƯỢNG
 ============================= */
 if (isset($_POST['update_qty'])) {
+
+    // Kiểm tra CSRF token
+    if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+        $_SESSION['cart_error'] = "Yêu cầu không hợp lệ, vui lòng thử lại.";
+        header("Location: xem.php");
+        exit();
+    }
+
     $MaSP = $_POST['MaSP'] ?? '';
     $MaCart = $_POST['MaCart'] ?? '';
-    $SoLuong = intval($_POST['SoLuong'] ?? 1);
+    $rawSoLuong = $_POST['SoLuong'] ?? '';
 
-    if ($SoLuong < 1) $SoLuong = 1;
+    // Kiểm tra sản phẩm này có thực sự thuộc giỏ hàng của user hiện tại không
+    if (!sanPhamThuocGioHangCuaUser($conn, $MaKH, $MaCart, $MaSP)) {
+        $_SESSION['cart_error'] = "Sản phẩm không hợp lệ.";
+        header("Location: xem.php");
+        exit();
+    }
 
-    $stmt_up = $conn->prepare("UPDATE ct_cart SET SoLuong = ? WHERE MaCart = ? AND MaSP = ?");
-    $stmt_up->bind_param("iss", $SoLuong, $MaCart, $MaSP);
-    $stmt_up->execute();
-    $stmt_up->close();
+    // Kiểm tra số lượng phải là số nguyên và lớn hơn 0 (chặn cả chuỗi rác, số 0, số âm)
+    $SoLuongHopLe = filter_var($rawSoLuong, FILTER_VALIDATE_INT);
+
+    if ($SoLuongHopLe === false || $SoLuongHopLe < 1) {
+        $_SESSION['cart_error'] = "Số lượng phải lớn hơn 0";
+    } else {
+        // Giới hạn trên hợp lý để tránh giá trị bất thường (tùy chỉnh theo nghiệp vụ)
+        if ($SoLuongHopLe > 1000) {
+            $SoLuongHopLe = 1000;
+        }
+
+        $stmt_up = $conn->prepare("UPDATE ct_cart SET SoLuong = ? WHERE MaCart = ? AND MaSP = ?");
+        $stmt_up->bind_param("iss", $SoLuongHopLe, $MaCart, $MaSP);
+        $stmt_up->execute();
+        $stmt_up->close();
+    }
 
     header("Location: xem.php");
     exit();
 }
 
 /* =============================
-   XỬ LÝ XÓA SẢN PHẨM
+   XỬ LÝ XÓA SẢN PHẨM (đổi sang POST + CSRF để chống CSRF attack)
 ============================= */
-if (isset($_GET['delete'])) {
-    $MaSP = $_GET['delete'] ?? '';
+if (isset($_POST['delete'])) {
+
+    if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+        $_SESSION['cart_error'] = "Yêu cầu không hợp lệ, vui lòng thử lại.";
+        header("Location: xem.php");
+        exit();
+    }
+
+    $MaSP = $_POST['delete'] ?? '';
 
     $stmt_cart = $conn->prepare("SELECT MaCart FROM cart WHERE userid = ?");
     $stmt_cart->bind_param("s", $MaKH);
@@ -139,6 +204,7 @@ $conn->close();
         }
         .btn-delete {
             color: #ff4444;
+            background: transparent;
             text-decoration: none;
             font-size: 16px;
             padding: 6px 12px;
@@ -146,6 +212,7 @@ $conn->close();
             border-radius: 4px;
             display: inline-block;
             transition: 0.3s;
+            cursor: pointer;
         }
         .btn-delete:hover {
             background: #ff4444;
@@ -209,10 +276,25 @@ $conn->close();
             color: #bbb;
             font-size: 18px;
         }
+        .cart-error {
+            max-width: 600px;
+            margin: 0 auto 20px;
+            background: #3a1f1f;
+            color: #ff6b6b;
+            border: 1px solid #ff4444;
+            padding: 12px 16px;
+            border-radius: 6px;
+            text-align: center;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
     <h1 style="text-align: center; color: white; margin-bottom: 30px;">🛒 GIỎ HÀNG CỦA BẠN</h1>
+
+    <?php if (!empty($error)): ?>
+        <div class="cart-error">⚠️ <?php echo htmlspecialchars($error); ?></div>
+    <?php endif; ?>
 
     <form action="../main/index.php" method="post">
         <input type="submit" value="🏠 Quay về trang chủ" class="btn-home">
@@ -238,8 +320,11 @@ $conn->close();
                 foreach ($sanpham as $sp) {
                     $Ten = htmlspecialchars($sp['TenSP']);
                     $date = htmlspecialchars($sp['ngaytao']);
-                    $SoLuong = $sp['SoLuong'];
-                    $Gia = $sp['Gia'];
+
+                    // Không cho phép số lượng hoặc đơn giá âm ảnh hưởng đến tổng tiền hiển thị
+                    $SoLuong = max(0, intval($sp['SoLuong']));
+                    $Gia = max(0, floatval($sp['Gia']));
+
                     $STT = $sp['STT'];
                     $MaSP = htmlspecialchars($sp['MaSP']);
                     $MaCart = htmlspecialchars($sp['MaCart']);
@@ -255,24 +340,33 @@ $conn->close();
                         <td>$date</td>
                         <td>
                             <form method='post' style='display:flex; justify-content:center; gap:5px; align-items:center;'>
+                                <input type='hidden' name='csrf_token' value='" . htmlspecialchars($csrf_token) . "'>
                                 <input type='hidden' name='MaSP' value='$MaSP'>
                                 <input type='hidden' name='MaCart' value='$MaCart'>
-                                <input type='number' name='SoLuong' min='1' value='$SoLuong'>
+                                <input type='number' name='SoLuong' min='1' step='1' value='$SoLuong'>
                                 <input type='submit' name='update_qty' value='✓'>
                             </form>
                         </td>
                         <td>" . number_format($Gia, 0, ',', '.') . " đ</td>
                         <td>" . number_format($ThanhTien, 0, ',', '.') . " đ</td>
                         <td style='display: flex; flex-direction: column; gap: 5px; align-items: center;'>
-                            <a href='?delete=$MaSP' class='btn-delete' onclick='return confirm(\"Bạn có chắc muốn xóa sản phẩm này?\")'>🗑️ Xóa</a>
+                            <form method='post' style='margin: 0;' onsubmit='return confirm(\"Bạn có chắc muốn xóa sản phẩm này?\")'>
+                                <input type='hidden' name='csrf_token' value='" . htmlspecialchars($csrf_token) . "'>
+                                <input type='hidden' name='delete' value='$MaSP'>
+                                <button type='submit' class='btn-delete'>🗑️ Xóa</button>
+                            </form>
                             <form action='../thanhtoan/index.php' method='post' style='margin: 0;'>
+                                <input type='hidden' name='csrf_token' value='" . htmlspecialchars($csrf_token) . "'>
                                 <input type='hidden' name='MaSP' value='$MaSP'>
-                                <input type='hidden' name='SoLuong' value='$SoLuong'>
+                                <input type='hidden' name='MaCart' value='$MaCart'>
                                 <button type='submit' class='btn-buy'>💰 Mua ngay</button>
                             </form>
                         </td>
                     </tr>";
                 }
+
+                // Đảm bảo tổng tiền không bao giờ hiển thị số âm
+                $tongtien = max(0, $tongtien);
 
                 echo "
                 <tr class='total-row'>

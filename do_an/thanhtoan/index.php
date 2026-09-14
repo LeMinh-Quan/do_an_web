@@ -7,6 +7,14 @@ session_start();
 require_once '../config.php';
 require_once '../connect_db.php';
 
+// Nhãn hiển thị cho từng loại địa chỉ
+$loaiDiaChiLabels = [
+    'Nha rieng' => ['icon' => '🏠', 'text' => 'Nhà riêng'],
+    'Cong ty'   => ['icon' => '🏢', 'text' => 'Công ty'],
+    'Khac'      => ['icon' => '📍', 'text' => 'Địa chỉ khác'],
+];
+$loaiDiaChiHopLe = array_keys($loaiDiaChiLabels);
+
 try {
     $conn = connect_db();
     
@@ -76,18 +84,26 @@ try {
 
     $NgayDat = $_POST['date'] ?? date('Y-m-d H:i:s');
 
-    // Lấy địa chỉ hiện tại nếu có
-    $stmtAddr = $conn->prepare("SELECT * FROM diachi WHERE MaKH = ?");
-    if (!$stmtAddr) {
-        throw new Exception("Lỗi prepare diachi: " . $conn->error);
+    // Lấy TẤT CẢ địa chỉ đã lưu của khách hàng, gom theo loại (Nha rieng / Cong ty / Khac)
+    function taiDanhSachDiaChi($conn, $MaKH) {
+        $savedAddresses = [];
+        $stmtAddr = $conn->prepare("SELECT * FROM diachi WHERE MaKH = ?");
+        if (!$stmtAddr) {
+            throw new Exception("Lỗi prepare diachi: " . $conn->error);
+        }
+        $stmtAddr->bind_param("s", $MaKH);
+        $stmtAddr->execute();
+        $resAddr = $stmtAddr->get_result();
+        while ($row = $resAddr->fetch_assoc()) {
+            $loai = $row['LoaiDiaChi'] ?? 'Khac';
+            $savedAddresses[$loai] = $row;
+        }
+        $stmtAddr->close();
+        return $savedAddresses;
     }
-    
-    $stmtAddr->bind_param("s", $MaKH);
-    $stmtAddr->execute();
-    $resAddr = $stmtAddr->get_result();
-    $hasAddress = ($resAddr->num_rows > 0);
-    $addressRow = $hasAddress ? $resAddr->fetch_assoc() : null;
-    $stmtAddr->close();
+
+    $savedAddresses = taiDanhSachDiaChi($conn, $MaKH);
+    $hasAddress = count($savedAddresses) > 0;
 
     // ---------- STEP: Chọn/nhập địa chỉ ----------
     if ($step === 'diachi') {
@@ -97,39 +113,42 @@ try {
             $PhuongXa = trim($_POST['PhuongXa'] ?? '');
             $QuanHuyen = trim($_POST['QuanHuyen'] ?? '');
             $ThanhPho = trim($_POST['ThanhPho'] ?? '');
+
+            // Loại địa chỉ: chỉ chấp nhận 3 giá trị hợp lệ, tránh dữ liệu tùy ý
+            $LoaiDiaChi = $_POST['LoaiDiaChi'] ?? 'Khac';
+            if (!in_array($LoaiDiaChi, $loaiDiaChiHopLe, true)) {
+                $LoaiDiaChi = 'Khac';
+            }
             
             if ($ChiTietDiaChi && $PhuongXa && $QuanHuyen && $ThanhPho) {
                 $DiaChi = "$ChiTietDiaChi, $PhuongXa, $QuanHuyen, $ThanhPho";
 
-                // Lưu vào DB
-                if ($hasAddress) {
-                    $sqlUp = "UPDATE diachi SET ChiTietDiaChi=?, PhuongXa=?, QuanHuyen=?, ThanhPho=? WHERE MaKH=?";
+                // Xác nhận & lưu vào DB: UPSERT theo (MaKH, LoaiDiaChi)
+                $daCoLoaiNay = isset($savedAddresses[$LoaiDiaChi]);
+
+                if ($daCoLoaiNay) {
+                    $sqlUp = "UPDATE diachi SET ChiTietDiaChi=?, PhuongXa=?, QuanHuyen=?, ThanhPho=? WHERE MaKH=? AND LoaiDiaChi=?";
                     $stmtUp = $conn->prepare($sqlUp);
                     if (!$stmtUp) {
                         throw new Exception("Lỗi prepare update diachi: " . $conn->error);
                     }
-                    $stmtUp->bind_param("sssss", $ChiTietDiaChi, $PhuongXa, $QuanHuyen, $ThanhPho, $MaKH);
+                    $stmtUp->bind_param("ssssss", $ChiTietDiaChi, $PhuongXa, $QuanHuyen, $ThanhPho, $MaKH, $LoaiDiaChi);
                     $stmtUp->execute();
                     $stmtUp->close();
                 } else {
-                    $sqlIns = "INSERT INTO diachi (MaKH, ChiTietDiaChi, PhuongXa, QuanHuyen, ThanhPho) VALUES (?, ?, ?, ?, ?)";
+                    $sqlIns = "INSERT INTO diachi (MaKH, LoaiDiaChi, ChiTietDiaChi, PhuongXa, QuanHuyen, ThanhPho) VALUES (?, ?, ?, ?, ?, ?)";
                     $stmtIns = $conn->prepare($sqlIns);
                     if (!$stmtIns) {
                         throw new Exception("Lỗi prepare insert diachi: " . $conn->error);
                     }
-                    $stmtIns->bind_param("sssss", $MaKH, $ChiTietDiaChi, $PhuongXa, $QuanHuyen, $ThanhPho);
+                    $stmtIns->bind_param("ssssss", $MaKH, $LoaiDiaChi, $ChiTietDiaChi, $PhuongXa, $QuanHuyen, $ThanhPho);
                     $stmtIns->execute();
                     $stmtIns->close();
                 }
                 
-                // Cập nhật lại thông tin địa chỉ
-                $stmtAddr = $conn->prepare("SELECT * FROM diachi WHERE MaKH = ?");
-                $stmtAddr->bind_param("s", $MaKH);
-                $stmtAddr->execute();
-                $resAddr = $stmtAddr->get_result();
-                $hasAddress = ($resAddr->num_rows > 0);
-                $addressRow = $hasAddress ? $resAddr->fetch_assoc() : null;
-                $stmtAddr->close();
+                // Cập nhật lại danh sách địa chỉ sau khi lưu
+                $savedAddresses = taiDanhSachDiaChi($conn, $MaKH);
+                $hasAddress = count($savedAddresses) > 0;
             } else {
                 $message = "Vui lòng chọn hoặc nhập địa chỉ đầy đủ!";
                 $step = 'diachi';
@@ -146,20 +165,13 @@ try {
         if (!$MaSP || $SoLuong <= 0 || $Gia <= 0) {
             throw new Exception("Dữ liệu sản phẩm không hợp lệ! MaSP: $MaSP, SoLuong: $SoLuong, Gia: $Gia");
         }
-        
-        // Lấy địa chỉ từ bảng diachi để sử dụng
-        $stmtAddr = $conn->prepare("SELECT * FROM diachi WHERE MaKH = ?");
-        $stmtAddr->bind_param("s", $MaKH);
-        $stmtAddr->execute();
-        $resAddr = $stmtAddr->get_result();
-        
-        if ($resAddr->num_rows === 0) {
+
+        if (empty($DiaChi)) {
             throw new Exception("Vui lòng chọn địa chỉ giao hàng!");
         }
-        
-        $addressRow = $resAddr->fetch_assoc();
-        $DiaChiGiaoHang = $addressRow['ChiTietDiaChi'] . ", " . $addressRow['PhuongXa'] . ", " . $addressRow['QuanHuyen'] . ", " . $addressRow['ThanhPho'];
-        $stmtAddr->close();
+
+        // Dùng đúng địa chỉ khách đã chọn/nhập ở bước trước (không query lại DB để tránh lấy nhầm địa chỉ khác)
+        $DiaChiGiaoHang = $DiaChi;
 
         $tongtien = $SoLuong * $Gia;
         
@@ -345,6 +357,19 @@ button:hover {
     cursor: pointer;
 }
 
+.radio-label input[type="radio"] {
+    margin-right: 10px;
+    margin-top: 3px;
+}
+
+.address-type-label {
+    display: block;
+    text-align: left;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #2c3e50;
+}
+
 .message.error {
     background: #ffeaea;
     color: #c0392b;
@@ -414,27 +439,47 @@ button:hover {
         <input type="hidden" name="date" value="<?php echo htmlspecialchars($NgayDat); ?>">
 
         <div class="address-section">
-            <?php if($hasAddress && $addressRow): 
-                $fullAddr = $addressRow['ChiTietDiaChi'] . ", " . $addressRow['PhuongXa'] . ", " . $addressRow['QuanHuyen'] . ", " . $addressRow['ThanhPho'];
-            ?>
+            <?php if($hasAddress): ?>
                 <h4>🏠 Địa chỉ đã lưu</h4>
-                <label class="radio-label">
-                    <input type="radio" name="diachi_radio" value="<?php echo htmlspecialchars($fullAddr); ?>" checked> 
-                    <span class="address-text"><?php echo htmlspecialchars($fullAddr); ?></span>
-                </label>
+                <?php $first = true; ?>
+                <?php foreach ($loaiDiaChiHopLe as $loai): ?>
+                    <?php if (isset($savedAddresses[$loai])):
+                        $addr = $savedAddresses[$loai];
+                        $fullAddr = $addr['ChiTietDiaChi'] . ", " . $addr['PhuongXa'] . ", " . $addr['QuanHuyen'] . ", " . $addr['ThanhPho'];
+                        $nhan = $loaiDiaChiLabels[$loai];
+                    ?>
+                        <label class="radio-label">
+                            <input type="radio" name="diachi_radio" value="<?php echo htmlspecialchars($fullAddr); ?>" <?php echo $first ? 'checked' : ''; ?>>
+                            <span class="address-text">
+                                <strong><?php echo $nhan['icon'] . ' ' . $nhan['text']; ?>:</strong>
+                                <?php echo htmlspecialchars($fullAddr); ?>
+                            </span>
+                        </label>
+                        <?php $first = false; ?>
+                    <?php endif; ?>
+                <?php endforeach; ?>
             <?php endif; ?>
 
-            <h4>📝 Nhập địa chỉ mới</h4>
+            <h4>📝 Nhập / cập nhật địa chỉ</h4>
             <label class="radio-label">
-                <input type="radio" name="diachi_radio" value="" id="new-address-radio"> 
-                <span class="address-text">Sử dụng địa chỉ khác</span>
+                <input type="radio" name="diachi_radio" value="" id="new-address-radio" <?php echo $hasAddress ? '' : 'checked'; ?>> 
+                <span class="address-text">Thêm hoặc cập nhật một địa chỉ</span>
             </label>
             
-            <div id="new-address-fields" style="display: none; margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+            <div id="new-address-fields" style="<?php echo $hasAddress ? 'display: none;' : ''; ?> margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                <span class="address-type-label">Loại địa chỉ:</span>
+                <select name="LoaiDiaChi">
+                    <option value="Nha rieng">🏠 Nhà riêng</option>
+                    <option value="Cong ty">🏢 Công ty</option>
+                    <option value="Khac" selected>📍 Địa chỉ khác</option>
+                </select>
                 <input type="text" name="ChiTietDiaChi" placeholder="Số nhà, tên đường">
                 <input type="text" name="PhuongXa" placeholder="Phường/Xã">
                 <input type="text" name="QuanHuyen" placeholder="Quận/Huyện">
                 <input type="text" name="ThanhPho" placeholder="Thành phố">
+                <p style="font-size: 13px; color: #888; margin-top: -8px;">
+                    * Nếu loại địa chỉ đã có sẵn (VD: đã lưu "Công ty"), địa chỉ cũ sẽ được cập nhật lại theo thông tin mới.
+                </p>
             </div>
         </div>
 

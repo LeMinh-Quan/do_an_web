@@ -6,12 +6,13 @@ require_once '../config.php';
 $conn = connect_db();
 
 // Lấy dữ liệu từ form
-$cpu  = $_POST['CPU'] ?? 'all'; 
-$ram  = $_POST['RAM'] ?? 'all';
-$rom  = $_POST['ROM'] ?? 'all';
-$gpu  = $_POST['GPU'] ?? 'all';
-$hdh  = $_POST['HDH'] ?? 'all';
-$r_gb = $_POST['R_GB'] ?? 'all';
+$cpu   = $_POST['CPU'] ?? 'all'; 
+$ram   = $_POST['RAM'] ?? 'all';
+$rom   = $_POST['ROM'] ?? 'all';
+$gpu   = $_POST['GPU'] ?? 'all';
+$hdh   = $_POST['HDH'] ?? 'all';
+$r_gb  = $_POST['R_GB'] ?? 'all';
+$gia   = $_POST['GIA'] ?? 'all'; // Khoảng giá
 
 // Xây dựng câu SQL
 $sql = "SELECT sanpham.*, mota.*, cpu.TenCPU, ram.LoaiRAM, ram.DungLuong, rom.DungLuong as RomDungLuong, 
@@ -62,6 +63,27 @@ if ($gpu != 'all') {
 // Thêm điều kiện lọc Hệ điều hành
 if($hdh != 'all') {
     $sql .= " AND hdh.TenHDH LIKE '%$hdh%'";
+}
+
+// Thêm điều kiện lọc Khoảng giá
+// Danh sách khoảng giá hợp lệ (chống SQL injection vì chỉ cho phép giá trị định sẵn)
+$khoangGia = [
+    'duoi10'   => ['max' => 10000000],
+    '10-15'    => ['min' => 10000000, 'max' => 15000000],
+    '15-20'    => ['min' => 15000000, 'max' => 20000000],
+    '20-30'    => ['min' => 20000000, 'max' => 30000000],
+    'tren30'   => ['min' => 30000000],
+];
+
+if ($gia != 'all' && isset($khoangGia[$gia])) {
+    $kg = $khoangGia[$gia];
+    if (isset($kg['min']) && isset($kg['max'])) {
+        $sql .= " AND sanpham.GiaBan BETWEEN " . (int)$kg['min'] . " AND " . (int)$kg['max'];
+    } elseif (isset($kg['max'])) {
+        $sql .= " AND sanpham.GiaBan < " . (int)$kg['max'];
+    } elseif (isset($kg['min'])) {
+        $sql .= " AND sanpham.GiaBan > " . (int)$kg['min'];
+    }
 }
 
 $sql .= " LIMIT 0, 35";
@@ -476,6 +498,19 @@ $conn->close();
                 <option value="all" <?= $hdh == 'all' ? 'selected' : '' ?>>Tất cả hệ điều hành</option>
                 <option value="Win11" <?= $hdh == 'Win11' ? 'selected' : '' ?>>Windows 11</option>
                 <option value="MacOS" <?= $hdh == 'MacOS' ? 'selected' : '' ?>>MacOS</option>
+            </select>
+        </div>
+
+        <!-- Price Range Filter -->
+        <div class="filter-group">
+            <label>Khoảng giá:</label>
+            <select name="GIA">
+                <option value="all" <?= $gia == 'all' ? 'selected' : '' ?>>Tất cả mức giá</option>
+                <option value="duoi10" <?= $gia == 'duoi10' ? 'selected' : '' ?>>Dưới 10 triệu</option>
+                <option value="10-15" <?= $gia == '10-15' ? 'selected' : '' ?>>10 - 15 triệu</option>
+                <option value="15-20" <?= $gia == '15-20' ? 'selected' : '' ?>>15 - 20 triệu</option>
+                <option value="20-30" <?= $gia == '20-30' ? 'selected' : '' ?>>20 - 30 triệu</option>
+                <option value="tren30" <?= $gia == 'tren30' ? 'selected' : '' ?>>Trên 30 triệu</option>
             </select>
         </div>
 

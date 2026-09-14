@@ -2,53 +2,70 @@
 require_once("../connect_db.php");
 require_once("../config.php");
 session_start();
-if(isset($_SESSION['user_logon'])){
-  header("Location: ".INDEX_URL."login/user.php");
-  exit();
+
+// Đã đăng nhập rồi thì đưa về trang chủ, không vào trang đăng ký nữa
+if (isset($_SESSION['login'])) {
+    header("Location: " . INDEX_URL . "main/index.php");
+    exit();
 }
-$error="";
-if($_SERVER["REQUEST_METHOD"]=="POST"){
-  $username=isset($_POST["name"])?trim($_POST["name"]):"";
-  $email=isset($_POST["email"])?trim($_POST["email"]):"";
-  $pass=isset($_POST["password"])?trim($_POST["password"]):"";
-  $confirm=isset($_POST["confirm"])?trim($_POST["confirm"]):"";
 
-  if($username=="")
-    echo"nhap username";
-  else
-    if($email=="")
-      echo"nhap email";
-    else
-      if($pass!==$confirm)
-        echo"pass khong khop";
-      else
+$error = "";
 
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $username = isset($_POST["name"]) ? trim($_POST["name"]) : "";
+    $email    = isset($_POST["email"]) ? trim($_POST["email"]) : "";
+    $pass     = isset($_POST["password"]) ? trim($_POST["password"]) : "";
+    $confirm  = isset($_POST["confirm"]) ? trim($_POST["confirm"]) : "";
 
+    if ($username === "") {
+        $error = "Vui lòng nhập họ tên.";
+    } elseif ($email === "") {
+        $error = "Vui lòng nhập email.";
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $error = "Email không hợp lệ.";
+    } elseif ($pass === "") {
+        $error = "Vui lòng nhập mật khẩu.";
+    } elseif ($pass !== $confirm) {
+        $error = "Mật khẩu xác nhận không khớp.";
+    } else {
+        $conn = connect_db();
 
-        {
-          $conn=connect_db();
+        // BUG: không kiểm tra $conn có kết nối thành công hay không trước khi dùng tiếp
 
-          if($conn){
-            $password=md5($pass);
-          $maKH="KH".rand(1,99999);
-          $sql="insert into users (maKH, username, email, pass) values(?,?,?,?)";
-          $stmt=$conn->prepare($sql);
-          $stmt->bind_param("ssss",$maKH,$username,$email,$password);
-        if($stmt->execute()){
-          echo "";
-        }
-        else
-          echo "Đăng ký thành công!";
-header("Location: ../login/user.php");
+        // BUG: KHÔNG kiểm tra email đã tồn tại trong bảng users trước khi insert
+        // (phần SELECT MaKH FROM users WHERE email = ? đã bị bỏ hoàn toàn)
 
-          }
-          $stmt->close();
-        }
-        
-      $conn->close();
+        $password = md5($pass);
+
+        // Sinh MaKH duy nhất (giữ nguyên phần này vì không liên quan đến lỗi QC)
+        $trung = true;
+        $soLan = 0;
+        $maKH = "";
+        do {
+            $maKH = "KH" . rand(1, 99999);
+            $stmtMa = $conn->prepare("SELECT MaKH FROM users WHERE MaKH = ?");
+            $stmtMa->bind_param("s", $maKH);
+            $stmtMa->execute();
+            $stmtMa->store_result();
+            $trung = $stmtMa->num_rows > 0;
+            $stmtMa->close();
+            $soLan++;
+        } while ($trung && $soLan < 20);
+
+        // BUG: insert thẳng, không bọc if($stmt->execute()) và không kiểm tra $conn->errno
+        // Nếu email trùng UNIQUE KEY trong DB -> mysqli ném lỗi ra thẳng màn hình
+        // (hoặc trắng trang nếu display_errors=Off trên server production)
+        $sql = "INSERT INTO users (MaKH, username, email, pass) VALUES (?, ?, ?, ?)";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("ssss", $maKH, $username, $email, $password);
+        $stmt->execute(); // <-- Không kiểm tra kết quả, không try/catch, không check errno 1062
+
+        $stmt->close();
+        $conn->close();
+        header("Location: ../login/user.php?dang_ky=thanh_cong");
+        exit();
+    }
 }
-else
-  echo"vui long nhap thong tin";
 ?>
 
 
@@ -65,12 +82,19 @@ else
 <body>
   <div class="container">
     <h1>Đăng ký tài khoản</h1>
+
+    <?php if (!empty($error)): ?>
+      <div class="error-msg"><?php echo htmlspecialchars($error); ?></div>
+    <?php endif; ?>
+
     <form action="user.php" method="post">
       <label for="name">Họ và tên</label>
-      <input type="text" name="name" id="name" placeholder="Nhập họ tên" required>
+      <input type="text" name="name" id="name" placeholder="Nhập họ tên" required
+             value="<?php echo isset($_POST['name']) ? htmlspecialchars($_POST['name']) : ''; ?>">
 
       <label for="email">Email</label>
-      <input type="email" name="email" id="email" placeholder="you@example.com" required>
+      <input type="email" name="email" id="email" placeholder="you@example.com" required
+             value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>">
 
       <label for="password">Mật khẩu</label>
       <input type="password" name="password" id="password" placeholder="Nhập mật khẩu" required>
@@ -147,6 +171,18 @@ body::after {
   margin-bottom: 24px;
   letter-spacing: 0.5px;
   color: #fff;
+}
+
+/* ⚠️ Thông báo lỗi */
+.error-msg {
+  background: rgba(255, 118, 117, 0.15);
+  border: 1px solid var(--accent-3);
+  color: #ffd6d6;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 14px;
+  margin-bottom: 18px;
+  text-align: center;
 }
 
 /* 🧾 Nhãn */
