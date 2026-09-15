@@ -2,15 +2,19 @@
 session_start();
 require_once("../connect_db.php");
 require_once("../config.php");
+require_once("../layout/security.php");
 
 // Kiểm tra đăng nhập
 if (!isset($_SESSION['login'])) {
     header("Location: " . INDEX_URL . "login/user.php");
     exit();
 }
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    requireValidCsrf();
+}
 
 $conn = connect_db();
-$user = $conn->real_escape_string($_SESSION['login']);
+$user = (string)$_SESSION['login'];
 
 // Lấy MaHD từ POST (submit form) hoặc GET (vào trang lần đầu)
 $MaHD = $_POST['MaDH'] ?? $_GET['MaDH'] ?? null;
@@ -19,14 +23,17 @@ if (!$MaHD) {
 }
 
 // Lấy MaKH từ username
-$sql = "SELECT MaKH FROM users WHERE username='$user'";
-$result = $conn->query($sql);
+$stmtUser = $conn->prepare("SELECT MaKH FROM users WHERE username = ?");
+$stmtUser->bind_param("s", $user);
+$stmtUser->execute();
+$result = $stmtUser->get_result();
 if ($result && $result->num_rows > 0) {
     $row = $result->fetch_assoc();
     $MaKH = $row['MaKH'];
 } else {
     die("Không tìm thấy khách hàng!");
 }
+$stmtUser->close();
 
 // Lấy sản phẩm trong đơn hàng
 $sql2 = "
@@ -42,11 +49,14 @@ LEFT JOIN gpu ON mt.GPU = gpu.MaGPU
 LEFT JOIN manhinh mh ON mt.ManHinh = mh.MaMH
 LEFT JOIN hedieuhanh hdh ON mt.HeDieuHanh = hdh.MaHDH
 LEFT JOIN mausac ms ON mt.MauSac = ms.MaMau
-WHERE dh.MaDH = '$MaHD' AND dh.MaKH = '$MaKH';
+WHERE dh.MaDH = ? AND dh.MaKH = ?;
 ";
 
 $sanpham = [];
-$result2 = $conn->query($sql2);
+$stmtOrder = $conn->prepare($sql2);
+$stmtOrder->bind_param("ss", $MaHD, $MaKH);
+$stmtOrder->execute();
+$result2 = $stmtOrder->get_result();
 if ($result2 && $result2->num_rows > 0) {
     while ($row = $result2->fetch_assoc()) {
         $sanpham[] = $row;
@@ -54,6 +64,7 @@ if ($result2 && $result2->num_rows > 0) {
 } else {
     die("Không tìm thấy sản phẩm trong đơn hàng này!");
 }
+$stmtOrder->close();
 
 // Lấy sản phẩm đầu tiên
 $row = $sanpham[0];
@@ -76,9 +87,12 @@ $MH       = ($row['KichThuoc'] ?? '') . '" ' . ($row['DoPhanGiai'] ?? '') . ' ' 
 $HDH      = ($row['TenHDH'] ?? '') . ($row['PhienBan'] ? ' ' . $row['PhienBan'] : '');
 $Mau      = $row['TenMau'] ?? 'Không có thông tin';
 
-$sql3 = "SELECT STT FROM sanpham WHERE MaSP='$MaSP'";
-$result3 = $conn->query($sql3);
+$stmtImage = $conn->prepare("SELECT STT FROM sanpham WHERE MaSP = ?");
+$stmtImage->bind_param("s", $MaSP);
+$stmtImage->execute();
+$result3 = $stmtImage->get_result();
 $STT = ($result3 && $result3->num_rows > 0) ? $result3->fetch_assoc()['STT'] : 1;
+$stmtImage->close();
 $Hinh = "image_$STT.png";
 
 // Xử lý khi submit form
@@ -87,16 +101,22 @@ if (isset($_POST['btnSubmit'])) {
     $ThanhTien = $SoL * $DG;
 
     // Cập nhật số lượng và đơn giá
-    $sql_update = "UPDATE ct_donhang 
-                   SET SoLuong='$SoL'
-                   WHERE MaDH='$MaHD' AND MaSP='$MaSP'";
-    $conn->query($sql_update);
+    $stmtUpdate = $conn->prepare(
+        "UPDATE ct_donhang SET SoLuong = ? WHERE MaDH = ? AND MaSP = ?"
+    );
+    $stmtUpdate->bind_param("iss", $SoL, $MaHD, $MaSP);
+    $stmtUpdate->execute();
+    $stmtUpdate->close();
     
     // Cập nhật tổng tiền
-    $sql_sum = "UPDATE donhang 
-                SET TongTien = (SELECT SUM(SoLuong * DonGia) FROM ct_donhang WHERE MaDH='$MaHD')
-                WHERE MaDH='$MaHD'";
-    $conn->query($sql_sum);
+    $stmtSum = $conn->prepare(
+        "UPDATE donhang
+         SET TongTien = (SELECT SUM(SoLuong * DonGia) FROM ct_donhang WHERE MaDH = ?)
+         WHERE MaDH = ?"
+    );
+    $stmtSum->bind_param("ss", $MaHD, $MaHD);
+    $stmtSum->execute();
+    $stmtSum->close();
 
     header("Location: " . INDEX_URL . "dhang/index.php");
     exit();
@@ -110,6 +130,7 @@ $ThanhTien = $SoL * $DG;
 <!DOCTYPE html>
 <html lang="vi">
 <head>
+<link rel="stylesheet" href="../layout/style.css">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Thông tin sản phẩm</title>
@@ -228,6 +249,7 @@ window.onload = tinhThanhTien;
 
 <body>
 <form action="index.php" method="post">
+    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
     <input type="hidden" name="MaDH" value="<?php echo htmlspecialchars($MaHD); ?>">
     <input type="hidden" name="MaSP" value="<?php echo htmlspecialchars($MaSP); ?>">
 

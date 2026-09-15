@@ -2,6 +2,7 @@
 session_start();
 require_once("../connect_db.php");
 require_once("../config.php");
+require_once("../layout/security.php");
 
 if (!isset($_SESSION['login'])) {
     header("Location: " . INDEX_URL . "login/user.php");
@@ -12,41 +13,46 @@ $conn = connect_db();
 $user = $_SESSION['login'];
 
 // Lấy MaKH
-$sql = "SELECT MaKH FROM users WHERE username='$user'";
-$result = $conn->query($sql);
+$stmtUser = $conn->prepare("SELECT MaKH FROM users WHERE username = ?");
+$stmtUser->bind_param("s", $user);
+$stmtUser->execute();
+$result = $stmtUser->get_result();
 if ($result && $result->num_rows > 0) {
     $row = $result->fetch_assoc();
     $MaKH = $row['MaKH'];
 } else {
     die("Không tìm thấy khách hàng!");
 }
+$stmtUser->close();
 
 // Xử lý hủy đơn hàng
-if (isset($_GET['huy'])) {
-    $MaDH = $_GET['huy'];
-    $sql_update = "UPDATE donhang SET TrangThai='Huy' WHERE MaDH='$MaDH' AND MaKH='$MaKH'";
-    $conn->query($sql_update);
-    header("Location: " . INDEX_URL . "dhang/index.php");
-    exit();
-}
-
-// Xóa đơn hàng
-if (isset($_GET['delete'])) {
-    $MaDH = $_GET['delete'];
-    $sql_delete = "DELETE FROM donhang WHERE MaDH='$MaDH' AND MaKH='$MaKH'";
-    $conn->query($sql_delete);
+if (isset($_POST['huy']) || isset($_POST['delete'])) {
+    requireValidCsrf();
+    $MaDH = trim((string)($_POST['huy'] ?? $_POST['delete']));
+    $stmtAction = $conn->prepare(
+        isset($_POST['huy'])
+            ? "UPDATE donhang SET TrangThai='huy' WHERE MaDH = ? AND MaKH = ? AND TrangThai = 'Cho xac nhan'"
+            : "DELETE FROM donhang WHERE MaDH = ? AND MaKH = ? AND TrangThai IN ('Da Giao', 'huy')"
+    );
+    $stmtAction->bind_param("ss", $MaDH, $MaKH);
+    $stmtAction->execute();
+    $stmtAction->close();
     header("Location: " . INDEX_URL . "dhang/index.php");
     exit();
 }
 
 // Lấy danh sách đơn hàng
-$sql = "SELECT * FROM donhang WHERE MaKH='$MaKH'";
+$stmtOrders = $conn->prepare("SELECT * FROM donhang WHERE MaKH = ? ORDER BY NgayDat DESC");
+$stmtOrders->bind_param("s", $MaKH);
+$stmtOrders->execute();
 $sanpham = [];
-$result = $conn->query($sql);
+$result = $stmtOrders->get_result();
 if ($result && $result->num_rows > 0) {
     while ($row = $result->fetch_assoc()) {
         $sanpham[] = $row;
     }
+    $stmtOrders->close();
+    $csrf = csrfToken();
 }
 
 
@@ -56,6 +62,7 @@ if ($result && $result->num_rows > 0) {
 <!DOCTYPE html>
 <html lang="vi">
 <head>
+<link rel="stylesheet" href="../layout/style.css">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Quản lý đơn hàng</title>
@@ -66,7 +73,9 @@ if ($result && $result->num_rows > 0) {
 </style>
 </head>
 <body>
+<?php define('LAYOUT_FRAGMENT', true); require_once __DIR__ . '/../layout/header.php'; ?>
 
+<main class="container">
 <h1>Quản Lý Đơn Hàng</h1>
 <button onclick="chuyen()"><p class="ktp">+</p>Thêm Đơn Hàng Mới</button>
 
@@ -96,27 +105,34 @@ if ($result && $result->num_rows > 0) {
 
             <!-- Edit -->
             <form action="../edit/index.php" method="post" style="display:inline">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf, ENT_QUOTES, 'UTF-8'); ?>">
                 <input type="hidden" name="MaDH" value="<?= htmlspecialchars($dh['MaDH']); ?>">
                 <button type="submit" class="btn">📝</button>
             </form>
 
             <!-- Hủy -->
-            <a href="?huy=<?= htmlspecialchars($dh['MaDH']); ?>" 
-               onclick="return confirm('Bạn có chắc muốn hủy đơn hàng này không?')" 
-               class="btn">HỦY</a>
+            <form method="post" style="display:inline" onsubmit="return confirm('Bạn có chắc muốn hủy đơn hàng này không?')">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf, ENT_QUOTES, 'UTF-8'); ?>">
+                <input type="hidden" name="huy" value="<?= htmlspecialchars($dh['MaDH'], ENT_QUOTES, 'UTF-8'); ?>">
+                <button type="submit" class="btn">HỦY</button>
+            </form>
 
             <!-- Xóa -->
-            <a href="?delete=<?= htmlspecialchars($dh['MaDH']); ?>" 
-               onclick="return confirm('Bạn có chắc muốn xóa đơn hàng này không?')" 
-               class="btn">❌</a>
+            <form method="post" style="display:inline" onsubmit="return confirm('Bạn có chắc muốn xóa đơn hàng này không?')">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf, ENT_QUOTES, 'UTF-8'); ?>">
+                <input type="hidden" name="delete" value="<?= htmlspecialchars($dh['MaDH'], ENT_QUOTES, 'UTF-8'); ?>">
+                <button type="submit" class="btn">❌</button>
+            </form>
 
         <?php 
         // Da giao hoặc Huy → Chỉ Xóa
         elseif ($tt === 'Da Giao' || $tt === 'huy'): ?>
 
-            <a href="?delete=<?= htmlspecialchars($dh['MaDH']); ?>" 
-               onclick="return confirm('Bạn có chắc muốn xóa đơn hàng này không?')" 
-               class="btn">❌</a>
+            <form method="post" style="display:inline" onsubmit="return confirm('Bạn có chắc muốn xóa đơn hàng này không?')">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf, ENT_QUOTES, 'UTF-8'); ?>">
+                <input type="hidden" name="delete" value="<?= htmlspecialchars($dh['MaDH'], ENT_QUOTES, 'UTF-8'); ?>">
+                <button type="submit" class="btn">❌</button>
+            </form>
 
         <?php 
         // Dang giao → không hiện gì
@@ -132,6 +148,7 @@ if ($result && $result->num_rows > 0) {
 
     </table>
 </div>
+</main>
 
 <script>
 function chuyen() {
@@ -139,7 +156,7 @@ function chuyen() {
 }
 </script>
 
-</body>
+<?php require_once __DIR__ . '/../layout/footer.php'; ?>
 <style>
 /* ---------- Reset cơ bản ---------- */
 * {

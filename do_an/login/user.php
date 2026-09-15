@@ -1,7 +1,7 @@
 <?php
-require_once "../connect_db.php";
-require_once "../config.php";
-
+require_once __DIR__ . '/../connect_db.php';
+require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../layout/security.php';
 session_start();
 
 if (isset($_SESSION['login'])) {
@@ -11,36 +11,46 @@ if (isset($_SESSION['login'])) {
 
 $error = '';
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $user = trim($_POST["username"] ?? '');
-    $pass = trim($_POST["password"] ?? '');
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    requireValidCsrf();
+    $identifier = trim($_POST['username'] ?? '');
+    $pass = trim($_POST['password'] ?? '');
 
-    if (!empty($user) && !empty($pass)) {
+    if ($identifier !== '' && $pass !== '') {
         $conn = connect_db();
 
         if ($conn) {
-            $sql = "SELECT pass FROM users WHERE username = ?";
+            $sql = 'SELECT username, pass FROM users WHERE username = ? OR email = ? LIMIT 1';
             $stmt = $conn->prepare($sql);
 
             if ($stmt) {
-                $stmt->bind_param("s", $user);
-                $stmt->execute();
-                $stmt->store_result();
+                $stmt->bind_param('ss', $identifier, $identifier);
+                if ($stmt->execute()) {
+                    $stmt->bind_result($username, $passwordFromDb);
 
-                if ($stmt->num_rows > 0) {
-                    $stmt->bind_result($hashed_password_from_db);
-                    $stmt->fetch();
+                    $foundUser = $stmt->fetch();
+                    $authenticated = $foundUser && password_verify($pass, $passwordFromDb);
+                    $legacyPassword = $foundUser && !$authenticated && hash_equals($passwordFromDb, md5($pass));
 
-                    if (md5($pass) === $hashed_password_from_db) {
-                        $_SESSION['login'] = $user;
+                    if ($authenticated || $legacyPassword) {
+                        session_regenerate_id(true);
+                        // Store the canonical username for the rest of the project.
+                        $_SESSION['login'] = $username;
+                        $_SESSION['user'] = $username;
+                        if ($legacyPassword) {
+                            $newPassword = password_hash($pass, PASSWORD_DEFAULT);
+                            $stmtUpgrade = $conn->prepare('UPDATE users SET pass = ? WHERE username = ?');
+                            if ($stmtUpgrade) {
+                                $stmtUpgrade->bind_param('ss', $newPassword, $username);
+                                $stmtUpgrade->execute();
+                                $stmtUpgrade->close();
+                            }
+                        }
                         header("Location: " . INDEX_URL . "main/index.php");
                         exit();
-                    } else {
-                        $error = "Sai tên đăng nhập hoặc mật khẩu.";
                     }
-                } else {
-                    $error = "Sai tên đăng nhập hoặc mật khẩu.";
                 }
+                $error = "Sai tên đăng nhập/email hoặc mật khẩu.";
                 $stmt->close();
             } else {
                 $error = "Lỗi hệ thống, vui lòng thử lại sau.";
@@ -50,7 +60,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $error = "Lỗi kết nối cơ sở dữ liệu.";
         }
     } else {
-        $error = "Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu.";
+        $error = "Vui lòng nhập đầy đủ tên đăng nhập/email và mật khẩu.";
     }
 }
 ?>
@@ -65,6 +75,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     content="width=device-width, initial-scale=1.0"
   >
   <title>User Login - Gaming Bright</title>
+  <link rel="stylesheet" href="../layout/style.css">
   <link
     rel="stylesheet"
     href="style-user.css"
@@ -105,6 +116,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         action="user.php"
         method="post"
       >
+        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
         <div class="input-group">
           <input
             type="text"

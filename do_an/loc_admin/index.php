@@ -110,23 +110,18 @@ $conn->close();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quản lý sản phẩm - TQS Store</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../layout/style.css">
 </head>
 <body>
-    <div class="header">
-        <a class="name" href="index.php">TQS_store</a>
-        <nav>
-            <form action="../search_admin/index.php" method="post">
-                <input type="search" placeholder="tìm kiếm sản phẩm" name="search" id="search">
-                <button type="submit">🔍</button>
-            </form>
-            <form action="../add_admin/index.php" method="post">
-                <input type="submit" value="thêm sản phẩm">
-            </form>
-            <a href="../users_admin/index.php"><input type="button" value="qlý user"></a>
-            <a href="../logout/index.php"><input type="button" value="🚪"></a>
-        </nav>
-    </div>
+    <?php define('LAYOUT_FRAGMENT', true); require_once __DIR__ . '/../layout/header.php'; ?>
+    <main class="admin-main">
+      <div class="admin-toolbar">
+        <div>
+          <div class="eyebrow">Khu vực quản trị</div>
+          <h1 class="page-heading">Lọc sản phẩm</h1>
+        </div>
+        <a class="btn btn-secondary" href="../main_admin/index.php">← Sản phẩm</a>
+      </div>
 
     <div class="contents">
         <div class="options">
@@ -155,7 +150,6 @@ $conn->close();
                         <option value="32GB" <?php echo ($R_GB == '32GB') ? 'selected' : ''; ?>>32GB</option>
                     </select>
                 </div>
-
                 <div>
                     <label for="ROM">ROM: </label>
                     <select name="ROM" id="ROM">
@@ -289,6 +283,8 @@ $conn->close();
             });
         }
     </script>
+</body>
+
 </body>
     <style>
 /* RESET */

@@ -38,23 +38,19 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Document</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="../layout/style.css">
 </head>
 <body>
-  <div class="header">
-    <a class="name" href="index.php">TQS_store</a></li>
-    <nav>
-      <form action="../search_admin/index.php" method="post">
-        <input type="search" placeholder="tìm kiếm sản phẩm" name="search" id="search"><button>🔍</button>
-      </form>
-      <form action="../add_admin/index.php" method="post">
-        <input type="submit" value="thêm sản phẩm">
-      </form>
-      <a href="../users_admin/index.php"><input type="submit" value="qlý user"></a>
-
-      <a href="../logout/index.php"><input type="submit" value="🚪"></a>
-    </nav>
-  </div>
+  <?php define('LAYOUT_FRAGMENT', true); require_once __DIR__ . '/../layout/header.php'; ?>
+  <main class="admin-page">
+  <div class="admin-main">
+    <div class="admin-toolbar">
+      <div>
+        <div class="eyebrow">Khu vực quản trị</div>
+        <h1 class="page-heading">Quản lý sản phẩm</h1>
+      </div>
+      <a class="btn" href="../add_admin/index.php">+ Thêm sản phẩm</a>
+    </div>
   <div class="contents">
     <div class="options">
       <form action="../loc_admin/index.php" method="post">
@@ -322,7 +318,8 @@
         ?>
         </div>
 
-
+  </div>
+  </main>
       </div>
         
   </div>

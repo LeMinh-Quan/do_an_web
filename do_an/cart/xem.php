@@ -36,6 +36,8 @@ if (isset($_SESSION['cart_error'])) {
     $error = $_SESSION['cart_error'];
     unset($_SESSION['cart_error']);
 }
+$success = $_SESSION['cart_success'] ?? '';
+unset($_SESSION['cart_success']);
 
 /* =============================
    HÀM KIỂM TRA SẢN PHẨM CÓ THUỘC GIỎ HÀNG CỦA USER HIỆN TẠI KHÔNG
@@ -164,6 +166,7 @@ $conn->close();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Giỏ hàng</title>
+    <link rel="stylesheet" href="../layout/style.css">
     <style>
         body {
             background: #1e1e1e;
@@ -287,13 +290,28 @@ $conn->close();
             text-align: center;
             font-weight: bold;
         }
+        .cart-success {
+            max-width: 600px;
+            margin: 0 auto 20px;
+            background: #183b2b;
+            color: #86efac;
+            border: 1px solid #22c55e;
+            padding: 12px 16px;
+            border-radius: 6px;
+            text-align: center;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
+    <?php define('LAYOUT_FRAGMENT', true); require_once __DIR__ . '/../layout/header.php'; ?>
     <h1 style="text-align: center; color: white; margin-bottom: 30px;">🛒 GIỎ HÀNG CỦA BẠN</h1>
 
     <?php if (!empty($error)): ?>
         <div class="cart-error">⚠️ <?php echo htmlspecialchars($error); ?></div>
+    <?php endif; ?>
+    <?php if (!empty($success)): ?>
+        <div class="cart-success">✅ <?php echo htmlspecialchars($success); ?></div>
     <?php endif; ?>
 
     <form action="../main/index.php" method="post">
@@ -380,5 +398,4 @@ $conn->close();
             ?>
         </tbody>
     </table>
-</body>
-</html>
+    <?php require_once __DIR__ . '/../layout/footer.php'; ?>

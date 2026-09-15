@@ -105,11 +105,20 @@ $conn->close();
 <!DOCTYPE html>
 <html lang="vi">
 <head>
+<link rel="stylesheet" href="../layout/style.css">
     <meta charset="UTF-8">
     <title>Thêm sản phẩm</title>
 </head>
 <body>
-<h2>Thêm sản phẩm</h2>
+<?php define('LAYOUT_FRAGMENT', true); require_once __DIR__ . '/../layout/header.php'; ?>
+<main class="admin-main">
+<div class="admin-toolbar">
+    <div>
+        <div class="eyebrow">Khu vực quản trị</div>
+        <h1 class="page-heading">Thêm sản phẩm</h1>
+    </div>
+    <a class="btn btn-secondary" href="../main_admin/index.php">← Sản phẩm</a>
+</div>
 
 <!-- Hiển thị thông báo -->
 <?php if($message) echo $message; ?>
@@ -179,5 +188,5 @@ $conn->close();
     <input type="submit" value="Thêm sản phẩm">
     <input type="reset" value="Làm mới">
 </form>
-</body>
-</html>
+</main>
+<?php require_once __DIR__ . '/../layout/footer.php'; ?>

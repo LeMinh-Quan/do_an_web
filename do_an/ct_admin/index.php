@@ -77,6 +77,7 @@ $Hinh = "image_" . $row['STT'] . ".png";
 <!DOCTYPE html>
 <html lang="vi">
 <head>
+<link rel="stylesheet" href="../layout/style.css">
 <meta charset="UTF-8">
 <title>Chi tiết sản phẩm</title>
 <style>

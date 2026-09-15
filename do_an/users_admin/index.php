@@ -45,6 +45,7 @@ $result = $conn->query($sql);
 <!DOCTYPE html>
 <html lang="vi">
 <head>
+<link rel="stylesheet" href="../layout/style.css">
     <meta charset="UTF-8">
     <title>Admin - Danh Sách Users</title>
     <style>
@@ -59,8 +60,15 @@ $result = $conn->query($sql);
     </style>
 </head>
 <body>
-<form action="../main_admin/index.php" method="post"><button type="submit">về trang chủ</button></form>
-<h2>Danh Sách Users</h2>
+<?php define('LAYOUT_FRAGMENT', true); require_once __DIR__ . '/../layout/header.php'; ?>
+<main class="admin-main">
+<div class="admin-toolbar">
+    <div>
+        <div class="eyebrow">Khu vực quản trị</div>
+        <h1 class="page-heading">Danh sách khách hàng</h1>
+    </div>
+    <a class="btn btn-secondary" href="../main_admin/index.php">← Sản phẩm</a>
+</div>
 
 <table>
     <tr>
@@ -90,6 +98,5 @@ $result = $conn->query($sql);
         <tr><td colspan="7" style="text-align:center;">Chưa có user nào</td></tr>
     <?php endif; ?>
 </table>
-
-</body>
-</html>
+</main>
+<?php require_once __DIR__ . '/../layout/footer.php'; ?>

@@ -3,6 +3,7 @@
 session_start();
 require_once '../config.php';
 require_once '../connect_db.php';
+require_once '../layout/security.php';
 
 if(!isset($_SESSION['login'])){
     header("Location: ".INDEX_URL."login/user.php");
@@ -116,24 +117,12 @@ $conn->close();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chi tiết sản phẩm - <?php echo $TenSP; ?></title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../layout/style.css">
 </head>
 <body>
+<?php define('LAYOUT_FRAGMENT', true); require_once __DIR__ . '/../layout/header.php'; ?>
 
-<div class="header">
-    <a class="name" href="../main/index.php">TQS_store</a>
-    <nav>
-        <form action="../search/index.php" method="post">
-            <input type="search" placeholder="tìm kiếm sản phẩm" name="search" id="search">
-            <button type="submit">🔍</button>
-        </form>
-        <a href="../cart/xem.php">🛒</a>
-        <a href="../dhang/index.php">🚚</a>
-        <a href="../logout/index.php">🚪</a>
-    </nav>
-</div>
-
-<div class="content">
+<div class="content container">
     <!-- CỘT 1: ẢNH -->
     <div class="col col-img">
         <img src="../anh/<?php echo $Hinh; ?>.png" alt="<?php echo $TenSP; ?>" 
@@ -171,6 +160,7 @@ $conn->close();
     <!-- CỘT 3: NÚT MUA HÀNG -->
     <div class="col col-btn">
         <form action="../cart/index.php" method="post">
+            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
             <input type="hidden" name="MaSP" value="<?php echo $MaSP; ?>">
             <input type="hidden" name="action" value="add">
             <?php if ($SoLuong > 0): ?>
@@ -235,7 +225,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-</body>
+<?php require_once __DIR__ . '/../layout/footer.php'; ?>
 <style>
 /* RESET */
 * {

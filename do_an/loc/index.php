@@ -1,591 +1,211 @@
 <?php
-session_start();
-require_once '../connect_db.php';
-require_once '../config.php';
+$pageTitle = "TQS_store - Lọc sản phẩm";
+require_once __DIR__ . '/../layout/header.php';
+require_once __DIR__ . '/../layout/banner.php';
+require_once __DIR__ . '/../layout/security.php';
 
-$conn = connect_db();
+$cpu = $_POST['CPU'] ?? 'all';
+$ram = $_POST['RAM'] ?? 'all';
+$rom = $_POST['ROM'] ?? 'all';
+$gpu = $_POST['GPU'] ?? 'all';
+$hdh = $_POST['HDH'] ?? 'all';
+$rGb = $_POST['R_GB'] ?? 'all';
+$gia = $_POST['GIA'] ?? 'all';
+$searchTerm = trim($_POST['search'] ?? $_GET['search'] ?? '');
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    requireValidCsrf();
+}
 
-// Lấy dữ liệu từ form
-$cpu   = $_POST['CPU'] ?? 'all'; 
-$ram   = $_POST['RAM'] ?? 'all';
-$rom   = $_POST['ROM'] ?? 'all';
-$gpu   = $_POST['GPU'] ?? 'all';
-$hdh   = $_POST['HDH'] ?? 'all';
-$r_gb  = $_POST['R_GB'] ?? 'all';
-$gia   = $_POST['GIA'] ?? 'all'; // Khoảng giá
+$allowedValues = [
+    'cpu' => ['all', 'Apple', 'i5', 'i7', 'i9', 'Ryzen'],
+    'ram' => ['all', 'DDR4', 'DDR5'],
+    'rom' => ['all', 'ROM01', 'ROM02', 'ROM03'],
+    'gpu' => ['all', 'G_TH', 'G_R'],
+    'hdh' => ['all', 'Win11', 'MacOS'],
+    'rGb' => ['all', '8GB', '16GB', '32GB'],
+    'gia' => ['all', 'duoi10', '10-15', '15-20', '20-30', 'tren30'],
+];
 
-// Xây dựng câu SQL
-$sql = "SELECT sanpham.*, mota.*, cpu.TenCPU, ram.LoaiRAM, ram.DungLuong, rom.DungLuong as RomDungLuong, 
-               gpu.LoaiGPU, hdh.TenHDH
+foreach ($allowedValues as $name => $values) {
+    if (!in_array($$name, $values, true)) {
+        $$name = 'all';
+    }
+}
+
+$sql = "SELECT sanpham.*, mota.*, cpu.TenCPU, ram.LoaiRAM, ram.DungLuong,
+               rom.DungLuong AS RomDungLuong, gpu.LoaiGPU, hdh.TenHDH
         FROM sanpham
         JOIN mota ON sanpham.MaSP = mota.MaSP
         LEFT JOIN cpu ON mota.CPU = cpu.MaCPU
         LEFT JOIN ram ON mota.RAM = ram.MaRAM
         LEFT JOIN rom ON mota.ROM = rom.MaROM
         LEFT JOIN gpu ON mota.GPU = gpu.MaGPU
-        LEFT JOIN hedieuhanh hdh ON mota.HeDieuHanh = hdh.MaHDH
-        WHERE 1=1";
+        LEFT JOIN hedieuhanh hdh ON mota.HeDieuHanh = hdh.MaHDH";
+$where = [];
+$types = '';
+$params = [];
 
-// Thêm điều kiện lọc CPU
-if($cpu != 'all') {
-    $sql .= " AND cpu.TenCPU LIKE '%$cpu%'";
+if ($searchTerm !== '') {
+    $where[] = 'sanpham.TenSP LIKE ?';
+    $types .= 's';
+    $params[] = '%' . $searchTerm . '%';
+}
+if ($cpu !== 'all') {
+    $where[] = 'cpu.TenCPU LIKE ?';
+    $types .= 's';
+    $params[] = '%' . $cpu . '%';
+}
+if ($ram !== 'all') {
+    $where[] = 'ram.LoaiRAM LIKE ?';
+    $types .= 's';
+    $params[] = '%' . $ram . '%';
+}
+if ($rGb !== 'all') {
+    $where[] = 'ram.DungLuong LIKE ?';
+    $types .= 's';
+    $params[] = '%' . $rGb . '%';
+}
+if ($rom !== 'all') {
+    $where[] = 'rom.MaROM = ?';
+    $types .= 's';
+    $params[] = $rom;
+}
+if ($gpu !== 'all') {
+    $gpuValue = $gpu === 'G_TH' ? 'Tich hop' : 'Roi';
+    $where[] = 'gpu.LoaiGPU LIKE ?';
+    $types .= 's';
+    $params[] = '%' . $gpuValue . '%';
+}
+if ($hdh !== 'all') {
+    $hdhValue = $hdh === 'Win11' ? 'Windows 11' : 'MacOS';
+    $where[] = 'hdh.TenHDH LIKE ?';
+    $types .= 's';
+    $params[] = '%' . $hdhValue . '%';
 }
 
-// Thêm điều kiện lọc RAM
-if($ram != 'all' || $r_gb != 'all') {
-    $sql .= " AND (";
-    $conditions = [];
-    
-    if($ram != 'all') {
-        $conditions[] = "ram.LoaiRAM LIKE '%$ram%'";
-    }
-    if($r_gb != 'all') {
-        $conditions[] = "ram.DungLuong LIKE '%$r_gb%'";
-    }
-    
-    $sql .= implode(" OR ", $conditions) . ")";
-}
-
-// Thêm điều kiện lọc ROM
-if($rom != 'all') {
-    $sql .= " AND rom.MaROM LIKE '%$rom%'";
-}
-
-// Thêm điều kiện lọc GPU
-if ($gpu != 'all') {
-        // G_TH hoặc G_R tùy bạn đặt trong DB
-        if ($gpu == 'G_TH')
-            $sql .= " AND gpu.LoaiGPU LIKE '%Tich hop%'";
-        else
-            $sql .= " AND gpu.LoaiGPU LIKE '%Roi%'";
-    }
-
-// Thêm điều kiện lọc Hệ điều hành
-if($hdh != 'all') {
-    $sql .= " AND hdh.TenHDH LIKE '%$hdh%'";
-}
-
-// Thêm điều kiện lọc Khoảng giá
-// Danh sách khoảng giá hợp lệ (chống SQL injection vì chỉ cho phép giá trị định sẵn)
-$khoangGia = [
-    'duoi10'   => ['max' => 10000000],
-    '10-15'    => ['min' => 10000000, 'max' => 15000000],
-    '15-20'    => ['min' => 15000000, 'max' => 20000000],
-    '20-30'    => ['min' => 20000000, 'max' => 30000000],
-    'tren30'   => ['min' => 30000000],
+$priceRanges = [
+    'duoi10' => 'sanpham.GiaBan < 10000000',
+    '10-15' => 'sanpham.GiaBan BETWEEN 10000000 AND 15000000',
+    '15-20' => 'sanpham.GiaBan BETWEEN 15000000 AND 20000000',
+    '20-30' => 'sanpham.GiaBan BETWEEN 20000000 AND 30000000',
+    'tren30' => 'sanpham.GiaBan > 30000000',
 ];
-
-if ($gia != 'all' && isset($khoangGia[$gia])) {
-    $kg = $khoangGia[$gia];
-    if (isset($kg['min']) && isset($kg['max'])) {
-        $sql .= " AND sanpham.GiaBan BETWEEN " . (int)$kg['min'] . " AND " . (int)$kg['max'];
-    } elseif (isset($kg['max'])) {
-        $sql .= " AND sanpham.GiaBan < " . (int)$kg['max'];
-    } elseif (isset($kg['min'])) {
-        $sql .= " AND sanpham.GiaBan > " . (int)$kg['min'];
-    }
+if (isset($priceRanges[$gia])) {
+    $where[] = $priceRanges[$gia];
 }
+$sql .= $where ? ' WHERE ' . implode(' AND ', $where) : '';
+$sql .= ' ORDER BY sanpham.STT LIMIT 35';
 
-$sql .= " LIMIT 0, 35";
-
-// Thực thi truy vấn
 $sanpham = [];
-$result = $conn->query($sql);
-
-if($result && $result->num_rows > 0) {
-    while($row = $result->fetch_assoc()) {
+$stmt = $conn->prepare($sql);
+if (!$stmt) {
+    exit('Không thể chuẩn bị truy vấn lọc sản phẩm.');
+}
+if ($types !== '') {
+    $bindValues = [$types];
+    foreach ($params as $key => $value) {
+        $bindValues[] = &$params[$key];
+    }
+    call_user_func_array([$stmt, 'bind_param'], $bindValues);
+}
+if ($stmt->execute()) {
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
         $sanpham[] = $row;
     }
 }
+$stmt->close();
 
-$conn->close();
+$selectOptions = [
+    'CPU' => ['all' => 'Tất cả CPU', 'Apple' => 'Apple', 'i5' => 'Core i5', 'i7' => 'Core i7', 'i9' => 'Core i9', 'Ryzen' => 'Ryzen'],
+    'RAM' => ['all' => 'Tất cả loại RAM', 'DDR4' => 'DDR4', 'DDR5' => 'DDR5'],
+    'R_GB' => ['all' => 'Tất cả dung lượng', '8GB' => '8GB', '16GB' => '16GB', '32GB' => '32GB'],
+    'ROM' => ['all' => 'Tất cả bộ nhớ', 'ROM01' => '256GB', 'ROM02' => '512GB', 'ROM03' => '1TB'],
+    'GPU' => ['all' => 'Tất cả card', 'G_TH' => 'Card tích hợp', 'G_R' => 'Card rời'],
+    'HDH' => ['all' => 'Tất cả hệ điều hành', 'Win11' => 'Windows 11', 'MacOS' => 'MacOS'],
+    'GIA' => ['all' => 'Tất cả mức giá', 'duoi10' => 'Dưới 10 triệu', '10-15' => '10 - 15 triệu', '15-20' => '15 - 20 triệu', '20-30' => '20 - 30 triệu', 'tren30' => 'Trên 30 triệu'],
+];
+$selected = ['CPU' => $cpu, 'RAM' => $ram, 'R_GB' => $rGb, 'ROM' => $rom, 'GPU' => $gpu, 'HDH' => $hdh, 'GIA' => $gia];
 ?>
 
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TQS Store - Lọc sản phẩm</title>
-    <style>
-        /* RESET & BASE STYLES */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: Arial, sans-serif;
-        }
-
-        body {
-            background: #f5f5f5;
-            color: #333;
-        }
-
-        /* HEADER */
-        .header {
-            background: #222;
-            color: white;
-            padding: 15px 30px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 15px;
-        }
-
-        .header .name {
-            font-size: 28px;
-            font-weight: bold;
-            text-decoration: none;
-            color: #00eaff;
-        }
-
-        .header nav {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            flex-wrap: wrap;
-        }
-
-        .header nav a {
-            color: white;
-            text-decoration: none;
-            font-size: 22px;
-            padding: 5px;
-        }
-
-        .search-form {
-            display: flex;
-            background: white;
-            border-radius: 5px;
-            overflow: hidden;
-        }
-
-        .search-form input {
-            padding: 6px 10px;
-            border: none;
-            outline: none;
-            width: 200px;
-        }
-
-        .search-form button {
-            padding: 6px 10px;
-            border: none;
-            background: #00eaff;
-            cursor: pointer;
-        }
-
-        /* FILTER SECTION */
-        .filter-section {
-            background: white;
-            margin: 20px auto;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            width: 95%;
-            max-width: 1200px;
-        }
-
-        .filter-section h2 {
-            margin-bottom: 15px;
-            color: #333;
-            border-bottom: 2px solid #00eaff;
-            padding-bottom: 10px;
-        }
-
-        .filter-form {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            align-items: end;
-        }
-
-        .filter-group {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .filter-group label {
-            font-weight: bold;
-            margin-bottom: 5px;
-            color: #555;
-        }
-
-        .filter-group select {
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            background: white;
-        }
-
-        .filter-buttons {
-            display: flex;
-            gap: 10px;
-            grid-column: 1 / -1;
-            margin-top: 10px;
-        }
-
-        .filter-buttons input {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-
-        .btn-filter {
-            background: #007bff;
-            color: white;
-        }
-
-        .btn-reset {
-            background: #e74c3c;
-            color: white;
-        }
-
-        /* PRODUCTS GRID */
-        .products-section {
-            padding: 0 20px 20px;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .products-count {
-            margin: 20px 0;
-            font-size: 18px;
-            color: #555;
-        }
-
-        .products-count span {
-            background: #00eaff;
-            color: white;
-            padding: 5px 10px;
-            border-radius: 15px;
-            font-weight: bold;
-        }
-
-        .products-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 20px;
-        }
-
-        /* PRODUCT CARD */
-        .product-card {
-            background: white;
-            border-radius: 10px;
-            padding: 15px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            transition: transform 0.3s ease;
-            text-decoration: none;
-            color: inherit;
-            display: block;
-        }
-
-        .product-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-        }
-
-        .product-image {
-            width: 100%;
-            height: 150px;
-            object-fit: contain;
-            margin-bottom: 10px;
-        }
-
-        .product-price {
-            font-size: 18px;
-            font-weight: bold;
-            color: #e74c3c;
-            margin-bottom: 5px;
-        }
-
-        .product-name {
-            font-weight: bold;
-            margin-bottom: 5px;
-            color: #333;
-        }
-
-        .product-brand {
-            color: #666;
-            font-size: 14px;
-            margin-bottom: 10px;
-        }
-
-        /* TOOLTIP */
-        .product-tooltip {
-            position: relative;
-        }
-
-        .tooltip-content {
-            position: absolute;
-            bottom: 100%;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.9);
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
-            font-size: 12px;
-            width: 200px;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s ease;
-            z-index: 100;
-            text-align: left;
-        }
-
-        .tooltip-content::before {
-            content: '';
-            position: absolute;
-            top: 100%;
-            left: 50%;
-            transform: translateX(-50%);
-            border: 5px solid transparent;
-            border-top-color: rgba(0,0,0,0.9);
-        }
-
-        .product-card:hover .tooltip-content {
-            opacity: 1;
-            visibility: visible;
-            transform: translateX(-50%) translateY(-5px);
-        }
-
-        /* FOOTER */
-        .footer {
-            background: #1a1a1a;
-            color: white;
-            padding: 40px 20px;
-            margin-top: 40px;
-        }
-
-        .footer-content {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 30px;
-        }
-
-        .footer-section h3 {
-            margin-bottom: 15px;
-            color: #00eaff;
-        }
-
-        .footer-section a {
-            color: #ccc;
-            text-decoration: none;
-        }
-
-        .footer-section a:hover {
-            color: #00eaff;
-        }
-
-        .footer-bottom {
-            text-align: center;
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #444;
-            color: #999;
-        }
-
-        /* NO PRODUCTS MESSAGE */
-        .no-products {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-            font-size: 18px;
-            grid-column: 1 / -1;
-        }
-
-        /* RESPONSIVE */
-        @media (max-width: 768px) {
-            .header {
-                flex-direction: column;
-                text-align: center;
-            }
-            
-            .filter-form {
-                grid-template-columns: 1fr;
-            }
-            
-            .products-grid {
-                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            }
-        }
-    </style>
-</head>
-<body>
-
-<!-- HEADER -->
-<div class="header">
-    <a class="name" href="index.php">TQS Store</a>
-    <nav>
-        <form class="search-form" action="../search/index.php" method="post">
-            <input type="search" placeholder="Tìm kiếm sản phẩm..." name="search" required>
-            <button type="submit">🔍</button>
-        </form>
-        <a href="../cart/xem.php" title="Giỏ hàng">🛒</a>
-        <a href="../dhang/index.php" title="Đơn hàng">🚚</a>
-        <a href="../logout/index.php" title="Đăng xuất">🚪</a>
-    </nav>
-</div>
-
-<!-- FILTER SECTION -->
-<div class="filter-section">
-    <h2>🔍 Lọc sản phẩm</h2>
+<main class="container filter-page">
+  <section class="filter-panel">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Khám phá sản phẩm</p>
+        <h1 class="page-heading">Lọc sản phẩm</h1>
+      </div>
+      <span class="result-badge"><?= count($sanpham) ?> sản phẩm</span>
+    </div>
     <form class="filter-form" method="post">
-        <!-- CPU Filter -->
-        <div class="filter-group">
-            <label>CPU:</label>
-            <select name="CPU">
-                <option value="all" <?= $cpu == 'all' ? 'selected' : '' ?>>Tất cả CPU</option>
-                <option value="Apple" <?= $cpu == 'Apple' ? 'selected' : '' ?>>Apple</option>
-                <option value="i5" <?= $cpu == 'i5' ? 'selected' : '' ?>>Core i5</option>
-                <option value="i7" <?= $cpu == 'i7' ? 'selected' : '' ?>>Core i7</option>
-                <option value="i9" <?= $cpu == 'i9' ? 'selected' : '' ?>>Core i9</option>
-                <option value="Ryzen" <?= $cpu == 'Ryzen' ? 'selected' : '' ?>>Ryzen</option>
-            </select>
-        </div>
-
-        <!-- RAM Type Filter -->
-        <div class="filter-group">
-            <label>Loại RAM:</label>
-            <select name="RAM">
-                <option value="all" <?= $ram == 'all' ? 'selected' : '' ?>>Tất cả loại RAM</option>
-                <option value="DDR4" <?= $ram == 'DDR4' ? 'selected' : '' ?>>DDR4</option>
-                <option value="DDR5" <?= $ram == 'DDR5' ? 'selected' : '' ?>>DDR5</option>
-            </select>
-        </div>
-
-        <!-- RAM Capacity Filter -->
-        <div class="filter-group">
-            <label>Dung lượng RAM:</label>
-            <select name="R_GB">
-                <option value="all" <?= $r_gb == 'all' ? 'selected' : '' ?>>Tất cả dung lượng</option>
-                <option value="8GB" <?= $r_gb == '8GB' ? 'selected' : '' ?>>8GB</option>
-                <option value="16GB" <?= $r_gb == '16GB' ? 'selected' : '' ?>>16GB</option>
-                <option value="32GB" <?= $r_gb == '32GB' ? 'selected' : '' ?>>32GB</option>
-            </select>
-        </div>
-
-        <!-- Storage Filter -->
-        <div class="filter-group">
-            <label>Bộ nhớ:</label>
-            <select name="ROM">
-                <option value="all" <?= $rom == 'all' ? 'selected' : '' ?>>Tất cả bộ nhớ</option>
-                <option value="ROM01" <?= $rom == 'ROM01' ? 'selected' : '' ?>>256GB</option>
-                <option value="ROM02" <?= $rom == 'ROM02' ? 'selected' : '' ?>>512GB</option>
-                <option value="ROM03" <?= $rom == 'ROM03' ? 'selected' : '' ?>>1TB</option>
-            </select>
-        </div>
-
-        <!-- GPU Filter -->
-        <div class="filter-group">
-            <label>Card đồ họa:</label>
-            <select name="GPU">
-                <option value="all" <?= $gpu == 'all' ? 'selected' : '' ?>>Tất cả card</option>
-                <option value="G_TH" <?= $gpu == 'G_TH' ? 'selected' : '' ?>>Card tích hợp</option>
-                <option value="G_R" <?= $gpu == 'G_R' ? 'selected' : '' ?>>Card rời</option>
-            </select>
-        </div>
-
-        <!-- OS Filter -->
-        <div class="filter-group">
-            <label>Hệ điều hành:</label>
-            <select name="HDH">
-                <option value="all" <?= $hdh == 'all' ? 'selected' : '' ?>>Tất cả hệ điều hành</option>
-                <option value="Win11" <?= $hdh == 'Win11' ? 'selected' : '' ?>>Windows 11</option>
-                <option value="MacOS" <?= $hdh == 'MacOS' ? 'selected' : '' ?>>MacOS</option>
-            </select>
-        </div>
-
-        <!-- Price Range Filter -->
-        <div class="filter-group">
-            <label>Khoảng giá:</label>
-            <select name="GIA">
-                <option value="all" <?= $gia == 'all' ? 'selected' : '' ?>>Tất cả mức giá</option>
-                <option value="duoi10" <?= $gia == 'duoi10' ? 'selected' : '' ?>>Dưới 10 triệu</option>
-                <option value="10-15" <?= $gia == '10-15' ? 'selected' : '' ?>>10 - 15 triệu</option>
-                <option value="15-20" <?= $gia == '15-20' ? 'selected' : '' ?>>15 - 20 triệu</option>
-                <option value="20-30" <?= $gia == '20-30' ? 'selected' : '' ?>>20 - 30 triệu</option>
-                <option value="tren30" <?= $gia == 'tren30' ? 'selected' : '' ?>>Trên 30 triệu</option>
-            </select>
-        </div>
-
-        <!-- Buttons -->
-        <div class="filter-buttons">
-            <input type="reset" class="btn-reset" value="🔁 Làm mới">
-            <input type="submit" class="btn-filter" value="🔍 Lọc sản phẩm">
-        </div>
-    </form>
-</div>
-
-<!-- PRODUCTS SECTION -->
-<div class="products-section">
-    <div class="products-count">
-        Tìm thấy <span><?= count($sanpham) ?> sản phẩm</span> phù hợp
-    </div>
-
-    <div class="products-grid">
-        <?php if (!empty($sanpham)): ?>
-            <?php foreach($sanpham as $sp): ?>
-                <?php
-                $Ten   = htmlspecialchars($sp['TenSP']);
-                $Loai  = htmlspecialchars($sp['Loai']);
-                $TH    = htmlspecialchars($sp['ThuongHieu']);
-                $MT    = htmlspecialchars($sp['MoTa']);
-                $MaSP  = htmlspecialchars($sp['MaSP']);
-                $Gia   = number_format($sp['GiaBan'], 0, ',', '.');
-                $SL    = htmlspecialchars($sp['SoLuong']);
-                $Hinh  = 'image_' . $sp['STT'] . '.png';
-                ?>
-                <a href="../ct/index.php?MaSP=<?= $MaSP ?>" class="product-card product-tooltip">
-                    <img src="../anh/<?= $Hinh ?>" alt="<?= $Ten ?>" class="product-image">
-                    <div class="product-price"><?= $Gia ?> ₫</div>
-                    <div class="product-name"><?= $Ten ?></div>
-                    <div class="product-brand"><?= $TH ?></div>
-                    
-                    <!-- Tooltip -->
-                    <div class="tooltip-content">
-                        <strong><?= $Ten ?></strong><br>
-                        Loại: <?= $Loai ?><br>
-                        Hãng: <?= $TH ?><br>
-                        Mô tả: <?= substr($MT, 0, 50) ?>...<br>
-                        Giá: <?= $Gia ?> ₫<br>
-                        Còn lại: <?= $SL ?> sản phẩm
-                    </div>
-                </a>
+      <input type="hidden" name="search" value="<?= htmlspecialchars($searchTerm, ENT_QUOTES, 'UTF-8') ?>">
+      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrfToken(), ENT_QUOTES, 'UTF-8') ?>">
+      <?php foreach ($selectOptions as $name => $options): ?>
+        <label class="filter-field">
+          <span><?= htmlspecialchars($name === 'R_GB' ? 'Dung lượng RAM' : ($name === 'GIA' ? 'Khoảng giá' : $name)) ?></span>
+          <select name="<?= $name ?>">
+            <?php foreach ($options as $value => $label): ?>
+              <option value="<?= htmlspecialchars($value) ?>" <?= $selected[$name] === $value ? 'selected' : '' ?>><?= htmlspecialchars($label) ?></option>
             <?php endforeach; ?>
-        <?php else: ?>
-            <div class="no-products">
-                ❌ Không tìm thấy sản phẩm phù hợp với bộ lọc
-            </div>
-        <?php endif; ?>
-    </div>
-</div>
+          </select>
+        </label>
+      <?php endforeach; ?>
+      <div class="filter-actions">
+        <a class="btn btn-secondary" href="../loc/index.php">Làm mới</a>
+        <button class="btn" type="submit">Lọc sản phẩm</button>
+      </div>
+    </form>
+  </section>
 
-<!-- FOOTER -->
-<div class="footer">
-    <div class="footer-content">
-        <div class="footer-section">
-            <h3>Về TQS Store</h3>
-            <p>Chuyên cung cấp các sản phẩm công nghệ chính hãng, chất lượng với giá cả hợp lý.</p>
-        </div>
-        
-        <div class="footer-section">
-            <h3>Liên hệ</h3>
-            <p>📞 0395898212</p>
-            <p>📧 0306241144@caothang.edu.vn</p>
-            <p>📍 195 Nguyễn Chí Thanh, Dương Minh Châu, Tây Ninh</p>
-        </div>
+  <section class="results-section">
+    <div class="section-heading results-heading">
+      <div>
+        <p class="eyebrow">Danh sách phù hợp</p>
+        <h2 class="page-heading">Sản phẩm dành cho bạn</h2>
+      </div>
+      <?php if ($searchTerm !== ''): ?>
+        <p class="filter-keyword">Từ khóa: <strong><?= htmlspecialchars($searchTerm, ENT_QUOTES, 'UTF-8') ?></strong></p>
+      <?php endif; ?>
     </div>
-    
-    <div class="footer-bottom">
-        <p>&copy; 2023 TQS Store. Tất cả các quyền được bảo lưu.</p>
-    </div>
-</div>
+    <?php if ($sanpham): ?>
+      <div class="product-grid">
+        <?php foreach ($sanpham as $i => $sp):
+          $ten = htmlspecialchars($sp['TenSP'] ?? '', ENT_QUOTES, 'UTF-8');
+          $thuongHieu = htmlspecialchars($sp['ThuongHieu'] ?? '', ENT_QUOTES, 'UTF-8');
+          $maSP = rawurlencode((string)($sp['MaSP'] ?? ''));
+          $giaHienThi = number_format((float)($sp['GiaBan'] ?? 0), 0, ',', '.');
+          $stt = (int)($sp['STT'] ?? ($i + 1));
+        ?>
+          <a href="../ct/index.php?MaSP=<?= $maSP ?>" class="product-card<?= $i >= 4 ? ' product-hidden' : '' ?>">
+            <img src="../anh/image_<?= $stt ?>.png" alt="<?= $ten ?>" class="product-image">
+            <div class="product-price"><?= $giaHienThi ?> đ</div>
+            <h3 class="product-title"><?= $ten ?></h3>
+            <div class="product-brand"><?= $thuongHieu ?></div>
+          </a>
+        <?php endforeach; ?>
+      </div>
+      <?php if (count($sanpham) > 4): ?>
+        <button class="show-more btn" type="button">Xem thêm</button>
+      <?php endif; ?>
+    <?php else: ?>
+      <div class="empty-state">Không tìm thấy sản phẩm phù hợp với bộ lọc.</div>
+    <?php endif; ?>
+  </section>
+</main>
 
-</body>
-</html>
+<script>
+document.querySelectorAll('.show-more').forEach(function (button) {
+  button.addEventListener('click', function () {
+    const grid = button.previousElementSibling;
+    const hiddenProducts = grid.querySelectorAll('.product-hidden');
+    Array.from(hiddenProducts).slice(0, 4).forEach(function (product) {
+      product.classList.remove('product-hidden');
+    });
+    if (!grid.querySelector('.product-hidden')) {
+      button.remove();
+    }
+  });
+});
+</script>
+
+<?php require_once __DIR__ . '/../layout/footer.php'; ?>

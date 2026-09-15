@@ -2,6 +2,7 @@
 session_start();
 require_once("../connect_db.php");
 require_once("../config.php");
+require_once("../layout/security.php");
 
 if(!isset($_SESSION['login'])){
     header("Location: " . INDEX_URL . "login/user.php");
@@ -30,15 +31,33 @@ if ($stmt) {
 }
 
 $MaSP = $_POST['MaSP'] ?? $_GET['MaSP'] ?? null;
-$SoLuong = (int)($_POST['SoLuong'] ?? 1);
+$SoLuong = filter_var($_POST['SoLuong'] ?? 1, FILTER_VALIDATE_INT);
 
-if($MaSP === null) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    requireValidCsrf();
+}
+
+if($MaSP === null || $MaSP === '') {
     die("Chưa chọn sản phẩm");
 }
 
-// Validate số lượng
-if($SoLuong < 1) {
+if($SoLuong === false || $SoLuong < 1) {
     $SoLuong = 1;
+}
+
+// Chỉ cho phép thêm sản phẩm đang tồn tại trong kho.
+$stmt_product = $conn->prepare("SELECT GiaBan FROM sanpham WHERE MaSP = ?");
+if (!$stmt_product) {
+    die("Lỗi chuẩn bị truy vấn sản phẩm");
+}
+$stmt_product->bind_param("s", $MaSP);
+$stmt_product->execute();
+$product_result = $stmt_product->get_result();
+$product = $product_result ? $product_result->fetch_assoc() : null;
+$stmt_product->close();
+
+if (!$product) {
+    die("Sản phẩm không tồn tại");
 }
 
 // Tìm hoặc tạo cart với prepared statement
@@ -53,7 +72,7 @@ if ($stmt_cart) {
         $cart = $result->fetch_assoc();
         $MaCart = $cart['MaCart'];
     } else {
-        $MaCart = 'CART'.time();
+        $MaCart = 'CART' . time() . random_int(10, 99);
         $ngaytao = date('Y-m-d');
 
         $sql_insert_cart = "INSERT INTO cart(MaCart, userid, ngaytao) VALUES(?, ?, ?)";
@@ -96,32 +115,24 @@ if ($stmt_check) {
             $stmt_update->close();
         }
     } else {
-        // Lấy giá SP với prepared statement
-        $sql_gia = "SELECT GiaBan FROM sanpham WHERE MaSP = ?";
-        $stmt_gia = $conn->prepare($sql_gia);
-        if ($stmt_gia) {
-            $stmt_gia->bind_param("s", $MaSP);
-            $stmt_gia->execute();
-            $res_gia = $stmt_gia->get_result();
-            $Gia = ($res_gia && $res_gia->num_rows > 0) ? $res_gia->fetch_assoc()['GiaBan'] : 0;
-            $stmt_gia->close();
-
-            // Thêm sản phẩm mới vào giỏ hàng
-            $sql_insert_ct = "INSERT INTO ct_cart(MaCart, MaSP, SoLuong, Gia) VALUES(?, ?, ?, ?)";
-            $stmt_insert_ct = $conn->prepare($sql_insert_ct);
-            if ($stmt_insert_ct) {
-                $stmt_insert_ct->bind_param("ssid", $MaCart, $MaSP, $SoLuong, $Gia);
-                if(!$stmt_insert_ct->execute()){
-                    die("Lỗi thêm CT_Cart: ".$conn->error);
-                }
-                $stmt_insert_ct->close();
-            }
+        // Lưu giá tại thời điểm thêm vào giỏ để không thay đổi theo giá hiện tại.
+        $Gia = (float)$product['GiaBan'];
+        $sql_insert_ct = "INSERT INTO ct_cart(MaCart, MaSP, SoLuong, Gia) VALUES(?, ?, ?, ?)";
+        $stmt_insert_ct = $conn->prepare($sql_insert_ct);
+        if (!$stmt_insert_ct) {
+            die("Lỗi chuẩn bị truy vấn chi tiết giỏ hàng");
         }
+        $stmt_insert_ct->bind_param("ssid", $MaCart, $MaSP, $SoLuong, $Gia);
+        if (!$stmt_insert_ct->execute()) {
+            die("Lỗi thêm CT_Cart: " . $conn->error);
+        }
+        $stmt_insert_ct->close();
     }
     $stmt_check->close();
 }
 
 $conn->close();
+$_SESSION['cart_success'] = "Thêm vào giỏ thành công!";
 header("Location: " . INDEX_URL . "cart/xem.php");
 exit();
 ?>

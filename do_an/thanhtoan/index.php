@@ -6,6 +6,7 @@ ini_set('display_errors', 1);
 session_start();
 require_once '../config.php';
 require_once '../connect_db.php';
+require_once '../layout/security.php';
 
 // Nhãn hiển thị cho từng loại địa chỉ
 $loaiDiaChiLabels = [
@@ -26,6 +27,9 @@ try {
     if (!isset($_SESSION['login'])) {
         header("Location: " . INDEX_URL . "login/user.php");
         exit();
+    }
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        requireValidCsrf();
     }
 
     $TenKH = $_SESSION['login'];
@@ -174,6 +178,16 @@ try {
         $DiaChiGiaoHang = $DiaChi;
 
         $tongtien = $SoLuong * $Gia;
+        $conn->begin_transaction();
+        $stockStmt = $conn->prepare('SELECT SoLuong FROM sanpham WHERE MaSP = ? FOR UPDATE');
+        $stockStmt->bind_param('s', $MaSP);
+        $stockStmt->execute();
+        $stock = $stockStmt->get_result()->fetch_assoc();
+        $stockStmt->close();
+        if (!$stock || (int)$stock['SoLuong'] < $SoLuong) {
+            $conn->rollback();
+            throw new Exception('Số lượng đặt vượt quá tồn kho hiện tại.');
+        }
         
         // Tạo mã đơn hàng duy nhất
         do {
@@ -209,6 +223,16 @@ try {
             $stmt_ct->bind_param("ssid", $MaDH, $MaSP, $SoLuong, $Gia);
             
             if ($stmt_ct->execute()) {
+                $stockUpdate = $conn->prepare('UPDATE sanpham SET SoLuong = SoLuong - ? WHERE MaSP = ? AND SoLuong >= ?');
+                $stockUpdate->bind_param('isi', $SoLuong, $MaSP, $SoLuong);
+                $stockUpdate->execute();
+                if ($stockUpdate->affected_rows !== 1) {
+                    $stockUpdate->close();
+                    $conn->rollback();
+                    throw new Exception('Không thể cập nhật tồn kho.');
+                }
+                $stockUpdate->close();
+                $conn->commit();
                 $_SESSION['MaDH'] = $MaDH;
                 $_SESSION['MaSP'] = $MaSP;
                 $_SESSION['TongTien'] = $tongtien;
@@ -228,13 +252,16 @@ try {
     // ---------- STEP: Thanh toán ----------
     if ($step === 'thanhtoan' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['PhuongThuc'])) {
         $PhuongThuc = $_POST['PhuongThuc'];
+        if (!in_array($PhuongThuc, ['Tien mat', 'Chuyen khoan'], true)) {
+            throw new Exception('Phương thức thanh toán không hợp lệ.');
+        }
         
         if (isset($_SESSION['MaDH'])) {
             $MaTT = "TT" . rand(100, 9999);
             $MaDH = $_SESSION['MaDH'];
             $Ngayvagio = $_SESSION['Ngayvagio'];
 
-            $TrangThai = 'Chưa thanh toán';
+            $TrangThai = 'Chua Thanh Toan';
             $stmt = $conn->prepare("INSERT INTO thanhtoan (MaTT, MaDH, PhuongThuc, Ngayvagio, TrangThai) VALUES (?, ?, ?, ?, ?)");
             if (!$stmt) {
                 throw new Exception("Lỗi prepare thanhtoan: " . $conn->error);
@@ -256,6 +283,9 @@ try {
     $conn->close();
 
 } catch (Exception $e) {
+    if (isset($conn) && $conn instanceof mysqli) {
+        $conn->rollback();
+    }
     die("LỖI: " . $e->getMessage());
 }
 ?>
@@ -266,6 +296,7 @@ try {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Đơn hàng</title>
+<link rel="stylesheet" href="../layout/style.css">
 <style>
 * {
     margin: 0;
@@ -399,6 +430,7 @@ button:hover {
 </style>
 </head>
 <body>
+<?php define('LAYOUT_FRAGMENT', true); require_once __DIR__ . '/../layout/header.php'; ?>
 <div class="container">
 
 <?php if($step === 'cart'): ?>
@@ -410,6 +442,7 @@ button:hover {
         <p><strong>Thành tiền:</strong> <span class="total"><?php echo number_format($SoLuong * $Gia, 0, ',', '.'); ?> VNĐ</span></p>
     </div>
     <form method="post">
+        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
         <input type="hidden" name="MaSP" value="<?php echo htmlspecialchars($MaSP); ?>">
         <input type="hidden" name="SoLuong" value="<?php echo htmlspecialchars($SoLuong); ?>">
         <input type="hidden" name="Gia" value="<?php echo htmlspecialchars($Gia); ?>">
@@ -432,6 +465,7 @@ button:hover {
     </div>
     
     <form method="post">
+        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
         <input type="hidden" name="step" value="diachi">
         <input type="hidden" name="MaSP" value="<?php echo htmlspecialchars($MaSP); ?>">
         <input type="hidden" name="SoLuong" value="<?php echo htmlspecialchars($SoLuong); ?>">
@@ -498,6 +532,7 @@ button:hover {
     </div>
     
     <form method="post">
+        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
         <input type="hidden" name="step" value="thanhtoan">
         <div class="payment-method">
             <label><strong>Phương thức thanh toán:</strong></label>
@@ -565,5 +600,5 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
-</body>
-</html>
+<?php require_once __DIR__ . '/../layout/footer.php'; ?>
+<?php /* footer closes the fragment document */ ?>

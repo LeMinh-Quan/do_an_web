@@ -2,6 +2,7 @@
     session_start();
     require_once("../config.php");
     require_once("../connect_db.php");
+    require_once("../layout/security.php");
     
     //Nếu đã đăng nhập, chuyển hướng đến trang admin
     if (isset($_SESSION['admin_login'])) {
@@ -12,6 +13,7 @@
     $error = '';
     
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
+        requireValidCsrf();
         if (isset($_POST["username"]) && isset($_POST["password"])) {
             $username = trim($_POST["username"]);
             $password = trim($_POST["password"]);
@@ -20,17 +22,31 @@
                 $conn = connect_db();
                
                 if ($conn) {
-                    $sql = "SELECT * FROM admin WHERE TKadmin = ? AND PASS = ?";
+                    $sql = "SELECT TKadmin, PASS FROM admin WHERE TKadmin = ? LIMIT 1";
                     $stmt = $conn->prepare($sql);
                     
                     if ($stmt) {
-                        $pass = md5($password);
-                        $stmt->bind_param("ss", $username, $pass);
+                        $stmt->bind_param("s", $username);
                         
                         if ($stmt->execute()) {
                             $result = $stmt->get_result();
 
-                            if ($result && $result->num_rows > 0) {
+                            $admin = $result ? $result->fetch_assoc() : null;
+                            $authenticated = $admin
+                                && (password_verify($password, $admin['PASS'])
+                                    || hash_equals($admin['PASS'], md5($password)));
+
+                            if ($authenticated) {
+                                if (hash_equals($admin['PASS'], md5($password))) {
+                                    $newPassword = password_hash($password, PASSWORD_DEFAULT);
+                                    $stmtUpgrade = $conn->prepare("UPDATE admin SET PASS = ? WHERE TKadmin = ?");
+                                    if ($stmtUpgrade) {
+                                        $stmtUpgrade->bind_param("ss", $newPassword, $username);
+                                        $stmtUpgrade->execute();
+                                        $stmtUpgrade->close();
+                                    }
+                                }
+                                session_regenerate_id(true);
                                 $_SESSION['admin_login'] = $username;
                                 header("Location: " . INDEX_URL . "main_admin/index.php");
                                 exit();
@@ -62,7 +78,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Login - ROG Style</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../layout/style.css">
 </head>
 <body>
     <div class="background-container">
@@ -83,6 +99,7 @@
             
 
             <form method="POST" action="">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
                 <div class="input-group">
                     <input type="text" id="username" name="username" placeholder=" " value="<?php echo isset($_POST['username']) ? htmlspecialchars($_POST['username']) : ''; ?>" required>
                     <label for="username">USERNAME</label>
