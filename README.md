@@ -10,14 +10,15 @@
 
 TQS Store là website thương mại điện tử mô phỏng một cửa hàng bán laptop và thiết bị công nghệ. Người dùng có thể xem, tìm kiếm, lọc sản phẩm, đăng ký tài khoản, thêm sản phẩm vào giỏ, đặt hàng và theo dõi đơn hàng.
 
-Hệ thống cũng có khu vực quản trị để quản lý sản phẩm, khách hàng, đơn hàng và trạng thái thanh toán. Dự án được thiết kế để chạy local trên XAMPP, phù hợp cho đồ án lập trình web cá nhân.
+Hệ thống hiện có thêm chatbot hỗ trợ khách hàng để tìm sản phẩm, kiểm tra giá, tồn kho và hướng dẫn mua hàng. Khi chatbot không chắc chắn hoặc không hiểu câu hỏi, tin nhắn sẽ được chuyển sang chế độ chờ admin xử lý qua giao diện chat hỗ trợ. Dự án được thiết kế để chạy local trên XAMPP, phù hợp cho đồ án lập trình web cá nhân.
 
 ## Mục tiêu
 
 - Xây dựng quy trình mua hàng trực tuyến hoàn chỉnh.
-- Tổ chức dữ liệu sản phẩm và đơn hàng bằng MySQL.
-- Thực hành PHP thuần, session và MySQLi.
+- Tổ chức dữ liệu sản phẩm, đơn hàng và hội thoại chatbot bằng MySQL.
+- Thực hành PHP thuần, session, MySQLi và xử lý AJAX/JSON.
 - Tạo giao diện dễ sử dụng, có hỗ trợ responsive.
+- Tích hợp chatbot hỗ trợ khách hàng và luồng chuyển tiếp sang admin.
 - Xây dựng nền tảng có thể tiếp tục mở rộng.
 
 ## Công nghệ sử dụng
@@ -43,7 +44,8 @@ Hệ thống cũng có khu vực quản trị để quản lý sản phẩm, kh�
 - Thêm, cập nhật số lượng và xóa sản phẩm trong giỏ hàng.
 - Đặt hàng và thanh toán chuyển khoản mô phỏng.
 - Theo dõi hoặc hủy đơn theo trạng thái cho phép.
-- Sử dụng chatbot để tra cứu sản phẩm và nhận hướng dẫn mua hàng.
+- Tương tác với chatbot để tra cứu sản phẩm, hỏi hãng, mức giá, tồn kho, đơn hàng và hướng dẫn mua hàng.
+- Nếu chatbot không hiểu hoặc cần hỗ trợ chuyên biệt, câu hỏi sẽ được chuyển sang admin để phản hồi thủ công.
 
 ### Quản trị viên
 
@@ -53,6 +55,7 @@ Hệ thống cũng có khu vực quản trị để quản lý sản phẩm, kh�
 - Xem danh sách và chi tiết đơn hàng.
 - Cập nhật trạng thái đơn hàng.
 - Xác nhận thanh toán chuyển khoản mô phỏng.
+- Theo dõi các cuộc hội thoại chatbot đang chờ admin phản hồi và gửi câu trả lời trực tiếp từ giao diện Chat hỗ trợ.
 
 > Thanh toán hiện chỉ mang tính mô phỏng, chưa tích hợp VNPay, MoMo, PayOS hoặc webhook ngân hàng.
 
@@ -63,7 +66,7 @@ do_an_web/
 ├── README.md
 ├── DOCS_SECURITY_ROADMAP.md
 ├── giaodientrangweb.pdf
-├── my_db (1).sql
+├── my_db.sql
 └── do_an/
     ├── index.php                 # Trang landing
     ├── config.php                # Cấu hình URL
@@ -112,7 +115,7 @@ do_an_web/
 
 4. Tạo database tên `my_db` với charset `utf8mb4`.
 
-5. Import file `my_db (1).sql`.
+5. Import file `my_db.sql`.
 
 6. Kiểm tra kết nối trong [do_an/connect_db.php](./do_an/connect_db.php):
 
@@ -143,7 +146,7 @@ do_an_web/
 
 ## Database
 
-File `my_db (1).sql` chứa các bảng chính:
+File `my_db.sql` chứa các bảng chính:
 
 | Bảng | Mục đích |
 |---|---|
@@ -154,6 +157,16 @@ File `my_db (1).sql` chứa các bảng chính:
 | `cart`, `ct_cart` | Giỏ hàng |
 | `donhang`, `ct_donhang` | Đơn hàng và chi tiết đơn |
 | `diachi`, `thanhtoan` | Địa chỉ giao hàng và thanh toán |
+| `chatbot_training` | Dữ liệu huấn luyện và câu trả lời mặc định cho chatbot |
+| `chatbot_conversations` | Lưu phiên hội thoại giữa khách hàng và bot/admin |
+| `chatbot_messages` | Lưu lịch sử tin nhắn của khách hàng và admin |
+
+## Chatbot hỗ trợ
+
+- Widget chatbot xuất hiện ở footer của mọi trang và có các gợi ý nhanh như hãng laptop, khoảng giá, đơn hàng và thanh toán.
+- Bot sẽ phân tích câu hỏi dựa trên dữ liệu trong `chatbot_training` và trả lời từ bảng `chatbot_training` hoặc các rule động như hãng, giá, tồn kho, đơn hàng.
+- Nếu không hiểu câu hỏi hoặc cần hỗ trợ thủ công, hệ thống đặt cuộc hội thoại vào trạng thái `pending_admin` và admin có thể phản hồi từ trang `chatbot/admin.php` sau khi đăng nhập quản trị.
+- `chatbot/poll.php` dùng polling để cập nhật tin nhắn từ admin cho người dùng ở giao diện chatbot thời gian thực.
 
 ## Bảo mật
 
