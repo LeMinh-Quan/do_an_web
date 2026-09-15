@@ -37,6 +37,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         // Store the canonical username for the rest of the project.
                         $_SESSION['login'] = $username;
                         $_SESSION['user'] = $username;
+                        // Release the SELECT result before issuing the password upgrade query.
+                        $stmt->free_result();
                         if ($legacyPassword) {
                             $newPassword = password_hash($pass, PASSWORD_DEFAULT);
                             $stmtUpgrade = $conn->prepare('UPDATE users SET pass = ? WHERE username = ?');

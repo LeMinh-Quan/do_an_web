@@ -508,6 +508,7 @@ th { background: #e2e8f0; }
   background: var(--color-surface);
   box-shadow: 0 18px 45px rgba(15, 23, 42, .22);
 }
+.chatbot-panel[hidden] { display: none !important; }
 .chatbot-head {
   display: flex;
   align-items: center;

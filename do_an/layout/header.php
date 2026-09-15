@@ -26,6 +26,7 @@ function renderSiteHeader(bool $isAdmin, string $tenHienThi): void
       <a class="header-link header-link-label" href="../main_admin/index.php">Sản phẩm</a>
       <a class="header-link header-link-label" href="../users_admin/index.php">Khách hàng</a>
       <a class="header-link header-link-label" href="../order_admin/index.php">Đơn hàng</a>
+      <a class="header-link header-link-label" href="../chatbot/admin.php">Chat hỗ trợ</a>
       <span class="user-badge">🛡️ Quản trị viên</span>
     <?php elseif (!empty($tenHienThi)): ?>
       <span class="user-badge" title="Tài khoản đang đăng nhập">👤 <?php echo htmlspecialchars($tenHienThi); ?></span>

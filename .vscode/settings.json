@@ -59,6 +59,16 @@
         "/^php -l \\.\\\\do_an\\\\chatbot\\\\process\\.php; php -l \\.\\\\do_an\\\\chatbot\\\\chat_widget\\.php; php -l \\.\\\\do_an\\\\add_admin\\\\index\\.php; php -l \\.\\\\do_an\\\\users_admin\\\\index\\.php; php -l \\.\\\\do_an\\\\loc_admin\\\\index\\.php; php -l \\.\\\\do_an\\\\search_admin\\\\index\\.php$/": {
             "approve": true,
             "matchCommandLine": true
-        }
+        },
+        "/^php -l 'C:\\\\xampp\\\\htdocs\\\\do_an_web\\\\do_an\\\\chatbot\\\\process\\.php'; php -l 'C:\\\\xampp\\\\htdocs\\\\do_an_web\\\\do_an\\\\chatbot\\\\chatbot_functions\\.php'; php -l 'C:\\\\xampp\\\\htdocs\\\\do_an_web\\\\do_an\\\\chatbot\\\\intents\\.php'; php -r \"\\$data=json_decode\\(file_get_contents\\('C:\\\\xampp\\\\htdocs\\\\do_an_web\\\\do_an\\\\chatbot\\\\chatbot_data\\.json'\\), true\\); if \\(!is_array\\(\\$data\\)\\) \\{ exit\\(1\\); \\} echo 'Training JSON valid: ' \\. count\\(\\$data\\) \\. ' intents';\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^php -r '\\$data=json_decode\\(file_get_contents\\(\"C:\\\\xampp\\\\htdocs\\\\do_an_web\\\\do_an\\\\chatbot\\\\chatbot_data\\.json\"\\), true\\); if \\(!is_array\\(\\$data\\)\\) \\{ exit\\(1\\); \\} echo \"Training JSON valid: \" \\. count\\(\\$data\\) \\. \" intents\";'$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "git hash-object": true,
+        "git rev-parse": true
     }
 }
