@@ -1,0 +1,64 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^php -l 'C:\\\\xampp\\\\htdocs\\\\do_an_web\\\\do_an\\\\logon\\\\user\\.php'; php -l 'C:\\\\xampp\\\\htdocs\\\\do_an_web\\\\do_an\\\\layout\\\\style\\.css' 2>&1; if \\(\\$LASTEXITCODE -ne 0\\) \\{ exit 1 \\}$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^php -l \\.\\\\do_an\\\\search\\\\index\\.php; php -l \\.\\\\do_an\\\\main\\\\index\\.php$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^php -l \\.\\\\do_an\\\\cart\\\\index\\.php; php -l \\.\\\\do_an\\\\cart\\\\xem\\.php$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^php -l \\.\\\\do_an\\\\cart\\\\index\\.php; php -l \\.\\\\do_an\\\\cart\\\\xem\\.php; php -l \\.\\\\do_an\\\\ct\\\\index\\.php$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^php -l \\.\\\\do_an\\\\layout\\\\security\\.php; php -l \\.\\\\do_an\\\\login\\\\user\\.php; php -l \\.\\\\do_an\\\\logon\\\\user\\.php; php -l \\.\\\\do_an\\\\loc\\\\index\\.php$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^php -l \\.\\\\do_an\\\\layout\\\\security\\.php; php -l \\.\\\\do_an\\\\login\\\\user\\.php; php -l \\.\\\\do_an\\\\logon\\\\user\\.php; php -l \\.\\\\do_an\\\\login_admin\\\\admin\\.php; php -l \\.\\\\do_an\\\\loc\\\\index\\.php; php -l \\.\\\\do_an\\\\main\\\\index\\.php; php -l \\.\\\\do_an\\\\search\\\\index\\.php; php -l \\.\\\\do_an\\\\cart\\\\index\\.php; php -l \\.\\\\do_an\\\\ct\\\\index\\.php$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^php -S 127\\.0\\.0\\.1:8091 -t \\.\\\\do_an$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^php -l \\.\\\\do_an\\\\order_admin\\\\index\\.php; php -l \\.\\\\do_an\\\\main_admin\\\\index\\.php; php -l \\.\\\\do_an\\\\thanhtoan\\\\index\\.php; php -l \\.\\\\do_an\\\\dhang\\\\index\\.php$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^php -l \\.\\\\do_an\\\\thanhtoan\\\\index\\.php; php -l \\.\\\\do_an\\\\order_admin\\\\index\\.php; php -l \\.\\\\do_an\\\\dhang\\\\index\\.php; php -l \\.\\\\do_an\\\\edit\\\\index\\.php$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^php -l \\.\\\\do_an\\\\dhang\\\\index\\.php; php -l \\.\\\\do_an\\\\edit\\\\index\\.php; php -l \\.\\\\do_an\\\\thanhtoan\\\\index\\.php; php -l \\.\\\\do_an\\\\order_admin\\\\index\\.php$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^php -l \\.\\\\do_an\\\\layout\\\\header\\.php; php -l \\.\\\\do_an\\\\main_admin\\\\index\\.php$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^php -l \\.\\\\do_an\\\\layout\\\\header\\.php; php -l \\.\\\\do_an\\\\main_admin\\\\index\\.php; php -l \\.\\\\do_an\\\\main\\\\index\\.php; php -l \\.\\\\do_an\\\\order_admin\\\\index\\.php$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^php -l \\.\\\\do_an\\\\chatbot\\\\chat_widget\\.php; php -l \\.\\\\do_an\\\\chatbot\\\\process\\.php; php -l \\.\\\\do_an\\\\layout\\\\footer\\.php; php -l \\.\\\\do_an\\\\loc\\\\index\\.php$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^php -l \\.\\\\do_an\\\\chatbot\\\\process\\.php; php -l \\.\\\\do_an\\\\users_admin\\\\index\\.php; php -l \\.\\\\do_an\\\\loc_admin\\\\index\\.php; php -l \\.\\\\do_an\\\\search_admin\\\\index\\.php$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^php -l \\.\\\\do_an\\\\chatbot\\\\process\\.php; php -l \\.\\\\do_an\\\\chatbot\\\\chat_widget\\.php; php -l \\.\\\\do_an\\\\add_admin\\\\index\\.php; php -l \\.\\\\do_an\\\\users_admin\\\\index\\.php; php -l \\.\\\\do_an\\\\loc_admin\\\\index\\.php; php -l \\.\\\\do_an\\\\search_admin\\\\index\\.php$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}
